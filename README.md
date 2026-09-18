@@ -24,7 +24,7 @@
 
 ```bash
 # 1. 取得程式碼
-git clone <this repo> && cd Quick_assignment
+git clone https://github.com/markl-a/finvid-rewriter.git && cd finvid-rewriter
 
 # 2. 裝 ffmpeg（已裝可跳過）
 winget install Gyan.FFmpeg        # Windows
