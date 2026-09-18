@@ -19,21 +19,22 @@ from typing import Any
 
 from pydantic import ValidationError
 
-from .. import plagiarism, pricing
+from .. import numbers, plagiarism, pricing
 from ..context import RunContext
 from ..llm import chat_json
-from ..manifest import StageResult
+from ..manifest import StageResult, config_hash
 from ..models import (
     AudioInfo, ChartSpec, CostEntry, DataPoint, ScriptClip, ScriptLine, ScriptsOutput,
     Transcript, TranscriptSegment, TopicSegment,
 )
 
 STAGE = "s3_script"
-PROMPT_VERSION = 6  # bump whenever a prompt below changes -> invalidates the s3 cache
+PROMPT_VERSION = 7  # bump whenever a prompt below changes -> invalidates the s3 cache
 
 TRANSCRIPT_FILE = "02_transcript.json"
 INFO_FILE = "01_info.json"
 OUTPUT_FILE = "03_scripts.json"
+PASS_A_CACHE_FILE = "03a_pass_a.json"  # scratch cache of the cheap pass, see execute()
 
 ATTRIBUTION_TEMPLATE = "根據{source}報導指出"
 
@@ -52,7 +53,7 @@ DUP_TIME_OVERLAP = 0.5         # >= this share of the shorter segment's time ran
 
 # ---------------------------------------------------------------- prompts
 
-PASS_A_SYSTEM = """你是財經短影音製作人。使用者會給你一段附時間戳的節目逐字稿（繁體中文，主題是台灣房市、房貸與利率）。
+PASS_A_SYSTEM = """你是財經短影音製作人。使用者會給你一段附時間戳的節目逐字稿（繁體中文）{topic_hint}。
 任務：把逐字稿切成 5 到 10 個「主題連貫」的段落，每段輸出以下欄位：
 - id：整數，從 1 開始遞增
 - start、end：該段在逐字稿中的起訖秒數，必須是純數字（例如 785，不要寫 13:05）
@@ -423,6 +424,19 @@ def ensure_attribution(clip: ScriptClip, attribution: str) -> None:
 
 # ---------------------------------------------------------------- estimates
 
+def _load_pass_a_cache(ctx: RunContext, key: str) -> dict[str, Any] | None:
+    p = ctx.path(PASS_A_CACHE_FILE)
+    if not p.exists():
+        return None
+    try:
+        cached = json.loads(p.read_text(encoding="utf-8"))
+    except (ValueError, OSError):
+        return None
+    if cached.get("key") != key or not isinstance(cached.get("payload"), dict):
+        return None
+    return cached["payload"]
+
+
 def _pass_a_estimate(model: str, transcript_chars: int, estimated: bool = True) -> list[CostEntry]:
     tokens_in = pricing.estimate_tokens_zh("x" * transcript_chars) + PASS_A_PROMPT_TOKENS
     return pricing.llm_cost(STAGE, "openai", model, tokens_in, PASS_A_OUTPUT_TOKENS,
@@ -498,10 +512,22 @@ def execute(ctx: RunContext) -> StageResult:
     est_a = sum(c.usd for c in _pass_a_estimate(s.llm_cheap_model, len(transcript.text)))
     ctx.charge(est_a, f"s3 Pass A ({s.llm_cheap_model})")
     user_a = (f"節目：{source}\n影片長度：{_mmss(transcript.duration_sec)}\n\n逐字稿：\n{transcript_lines}")
-    payload_a, cost_a = chat_json(s, s.llm_cheap_model, PASS_A_SYSTEM, user_a, stage=STAGE, note="pass A")
-    costs.extend(cost_a)
+    # Pass A has its own on-disk cache keyed by (model, prompts): if Pass B aborts half-way
+    # (budget guard, network) or only the Pass B prompt changes, the cheap pass is not paid again.
+    # the topic hint comes from the video title, not a hard-coded theme, so another finance show works unchanged
+    pa_system = PASS_A_SYSTEM.replace("{topic_hint}", f"，節目標題：「{info.title}」" if info and info.title else "")
+    pass_a_key = config_hash({"model": s.llm_cheap_model, "system": pa_system, "user": user_a})
+    payload_a = None if ctx.force else _load_pass_a_cache(ctx, pass_a_key)
+    if payload_a is not None:
+        ctx.log(f"[s3] Pass A: reusing {PASS_A_CACHE_FILE} (same model + prompt), $0")
+    else:
+        payload_a, cost_a = chat_json(s, s.llm_cheap_model, pa_system, user_a, stage=STAGE, note="pass A")
+        costs.extend(cost_a)
+        ctx.path(PASS_A_CACHE_FILE).write_text(
+            json.dumps({"key": pass_a_key, "payload": payload_a}, ensure_ascii=False, indent=2), encoding="utf-8")
+        ctx.log(f"[s3] Pass A: cost ${sum(c.usd for c in cost_a):.4f}")
     segments = parse_pass_a(payload_a, ctx.log)
-    ctx.log(f"[s3] Pass A: {len(segments)} candidate segments, cost ${sum(c.usd for c in cost_a):.4f}")
+    ctx.log(f"[s3] Pass A: {len(segments)} candidate segments")
 
     # ---- Gate: $0
     selected = select_segments(segments, threshold=s.hook_threshold, max_clips=ctx.max_clips)
@@ -514,6 +540,7 @@ def execute(ctx: RunContext) -> StageResult:
 
     # ---- Pass B: strong model, only for selected segments
     pb_system = PASS_B_SYSTEM.format(attribution=attribution)
+    source_numbers = numbers.numbers_in(transcript.text)  # every figure the show actually states
     clips: list[ScriptClip] = []
     rejected: list[ScriptClip] = []
     unparsable = 0
@@ -523,6 +550,7 @@ def execute(ctx: RunContext) -> StageResult:
         if clip is None:
             unparsable += 1
             continue
+        verify_numbers(clip, seg, source_numbers, ctx.log)
         source_text = transcript_slice(transcript, seg.start, seg.end, pad=PLAGIARISM_CONTEXT_SEC)
         ok, overlap, lcs = _plag(clip, source_text, s)
         if not ok:
@@ -567,6 +595,7 @@ def execute(ctx: RunContext) -> StageResult:
             "clips_accepted": len(clips),
             "clips_rejected": len(rejected),
             "clips_unparsable": unparsable,
+            "chart_points_dropped": sum(1 for c in clips + rejected for t in c.numbers_unverified if t.startswith("chart:")),
             "pass_b_skipped_saved_usd_est": saved,
         },
     )
@@ -602,6 +631,44 @@ def _call_pass_b(ctx: RunContext, seg: TopicSegment, system: str, user: str, att
     except (ValidationError, ValueError, TypeError) as e:
         ctx.log(f"[s3] seg {seg.id}: Pass B reply unusable ({e}); skipping this clip")
         return None
+
+
+def verify_numbers(clip: ScriptClip, seg: TopicSegment, source_numbers: set[float], log) -> None:
+    """$0 provenance gate. The prompt asks the model to use only figures from the transcript;
+    this checks it. Chart values are the legal risk (they get drawn as "data"), so any chart point
+    not stated in the transcript or in Pass A's data_points is dropped, and a chart left with fewer
+    than two points is dropped whole. Spoken numbers are only flagged (numbers_unverified) —
+    a paraphrase like 「差了四千」 is legitimate arithmetic, not fabrication."""
+    src = set(source_numbers)
+    for dp in seg.data_points:
+        src.add(dp.value)
+        scale = numbers.UNIT_SCALE.get(dp.unit[:1]) if dp.unit else None
+        if scale:
+            src.add(dp.value * scale)
+    if clip.chart:
+        kept_series = []
+        for ser in clip.chart.series:
+            pts = []
+            for pt in ser.points:
+                if numbers.value_stated(pt.value, pt.unit, src):
+                    pts.append(pt)
+                else:
+                    tag = f"chart:{pt.label}={pt.value:g}{pt.unit}"
+                    clip.numbers_unverified.append(tag)
+                    log(f"[s3] seg {seg.id}: chart point {tag} is not in the transcript -> dropped")
+            if len(pts) >= 2:
+                ser.points = pts
+                kept_series.append(ser)
+        clip.chart.series = kept_series
+        if not kept_series:
+            clip.chart = None
+            log(f"[s3] seg {seg.id}: chart dropped (no verifiable points left)")
+    spoken = clip.full_text.replace(clip.attribution, "")
+    for tok in numbers.unstated_numbers(spoken, src):
+        clip.numbers_unverified.append(f"text:{tok}")
+    if any(t.startswith("text:") for t in clip.numbers_unverified):
+        log(f"[s3] seg {seg.id}: spoken numbers not traceable to the transcript: "
+            + ", ".join(t[5:] for t in clip.numbers_unverified if t.startswith("text:")))
 
 
 def _plag(clip: ScriptClip, source_text: str, s) -> tuple[bool, float, int]:

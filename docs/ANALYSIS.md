@@ -2,6 +2,8 @@
 
 > 針對 `assignment-brief.md` 的解讀、素材盤點、技術選型與成本策略。
 > 這是「動手前的分析」，不是實作說明；實作完成後 README 另寫。
+> **以 README / COST.md 為準。** 實作與本文的差異：沒有 `--renderer ai`（AI 影片 API 只記對照價，不呼叫）、沒有 `--preview-only`、
+> `--stt local` 實作為環境變數 `FINVID_STT_PROVIDER=local`、反抄襲用 6-gram（非 8-gram）、`--cookies-from-browser` 只出現在 yt-dlp 失敗時的提示訊息。
 
 ---
 

@@ -273,6 +273,10 @@ def test_execute_end_to_end(tmp_path, monkeypatch):
     assert data["video_id"] == VIDEO_ID
     assert data["source_name"] == "TVBS《健康2.0》"
 
+    # Pass A system prompt carries the video title as the topic hint (no hard-coded theme)
+    assert "節目標題：「房價還會漲嗎？」" in fake.calls[0]["system"]
+    assert "{topic_hint}" not in fake.calls[0]["system"]
+
     # Pass A: garbage entry dropped, 6 valid segments kept
     assert len(data["segments"]) == 6
     assert result.meta["segments_total"] == 6
@@ -369,6 +373,20 @@ def test_budget_guard_fires_before_pass_b(tmp_path, monkeypatch):
         s3_script.execute(ctx)
     assert len(fake.calls) == 1  # aborted before the first Pass B call
     assert not ctx.path("03_scripts.json").exists()
+    assert ctx.path(s3_script.PASS_A_CACHE_FILE).exists()  # the cheap pass is kept
+
+    # retry with a bigger budget: Pass A is NOT paid again, only the 3 Pass B calls (+1 rewrite)
+    ctx2, logs = make_ctx(tmp_path, max_budget_usd=1.0)
+    s3_script.execute(ctx2)
+    assert not any(c["note"].startswith("pass A") for c in fake.calls[1:])
+    assert any("reusing 03a_pass_a.json" in l for l in logs)
+    assert ctx2.path("03_scripts.json").exists()
+
+    # --force re-runs Pass A; a changed cheap model too (different cache key)
+    ctx3, _ = make_ctx(tmp_path, max_budget_usd=1.0)
+    ctx3.force = True
+    s3_script.execute(ctx3)
+    assert fake.calls[-1]["note"] != "pass A" and any(c["note"] == "pass A" for c in fake.calls[-5:])
 
 
 def test_dry_run_estimates_only(tmp_path, monkeypatch):
@@ -450,3 +468,66 @@ def test_unify_chart_units_drops_minority_unit():
     # if nothing shares a unit, no chart is better than a wrong chart
     assert s3_script.unify_chart_units([DataPoint(label="a", value=1, unit="x"),
                                         DataPoint(label="b", value=2, unit="y")]) == []
+
+
+# ------------------------------------------------------------------ number provenance gate
+
+def test_numbers_parses_chinese_and_arabic_forms():
+    from pipeline.numbers import numbers_in, number_tokens
+    assert 15000 in numbers_in("一萬五")
+    assert 15000 in numbers_in("1萬5")
+    assert 15000 in numbers_in("1.5萬")
+    assert 5.8e11 in numbers_in("五千八百億")
+    assert {40} <= numbers_in("四十年") and {40} <= numbers_in("百分之四十") and {40} <= numbers_in("四成")
+    assert 23800000 in numbers_in("兩千三百八十萬") and 23800000 in numbers_in("2,380萬")
+    assert 3.5 in numbers_in("三點五")
+    # STT glues neighbours together: two numbers, not one
+    assert [v for _, vals in number_tokens("三萬二三萬四") for v in vals] == [32000, 34000]
+
+
+def test_verify_numbers_drops_unstated_chart_point_and_flags_text():
+    from pipeline.numbers import numbers_in
+    from pipeline.models import ChartSpec, ScriptClip, ScriptLine
+    src = numbers_in("台北市房價所得比15.7倍，新北市12.3倍，貸款一千萬、三十年期。")
+    seg = TopicSegment(id=1, start=0, end=60, topic="t", summary="s",
+                       data_points=[DataPoint(label="頭期款", value=200, unit="萬")],
+                       has_chart_data=True, hook_score=5)
+    clip = ScriptClip(
+        segment_id=1, title="t", hook="台北要15.7倍", attribution=ATTR,
+        lines=[ScriptLine(text=ATTR), ScriptLine(text="貸款1000萬三十年，頭期款兩百萬，桃園8.5倍")],
+        chart=ChartSpec(type="bar", title="c", series=[{"name": "房價所得比", "points": [
+            {"label": "台北", "value": 15.7, "unit": "倍"},
+            {"label": "新北", "value": 12.3, "unit": "倍"},
+            {"label": "桃園", "value": 8.5, "unit": "倍"},   # never said in the transcript
+        ]}]))
+    logs: list[str] = []
+    s3_script.verify_numbers(clip, seg, src, logs.append)
+    assert [p.label for p in clip.chart.series[0].points] == ["台北", "新北"]
+    assert "chart:桃園=8.5倍" in clip.numbers_unverified
+    # 1000萬 / 兩百萬 (data_points) / 三十 are traceable; 8.5 in the spoken text is only flagged
+    assert [t for t in clip.numbers_unverified if t.startswith("text:")] == ["text:8.5"]
+    assert any("dropped" in l for l in logs)
+
+
+def test_verify_numbers_drops_whole_chart_when_one_point_left():
+    from pipeline.models import ChartSpec, ScriptClip, ScriptLine
+    seg = TopicSegment(id=1, start=0, end=60, topic="t", summary="s", has_chart_data=True, hook_score=5)
+    clip = ScriptClip(segment_id=1, title="t", hook="h", attribution=ATTR, lines=[ScriptLine(text=ATTR)],
+                      chart=ChartSpec(type="bar", title="c", series=[{"name": "n", "points": [
+                          {"label": "a", "value": 40, "unit": "%"}, {"label": "b", "value": 77, "unit": "%"}]}]))
+    s3_script.verify_numbers(clip, seg, {40.0}, lambda _m: None)
+    assert clip.chart is None
+    assert clip.numbers_unverified == ["chart:b=77%"]
+
+
+def test_demo_clips_pass_number_gate():
+    """The shipped demo must not regress: every chart value is traceable to the transcript."""
+    from pipeline.numbers import numbers_in, value_stated
+    demo = Path(__file__).resolve().parent.parent / "data" / "demo"
+    scripts = json.loads((demo / "03_scripts.json").read_text(encoding="utf-8"))
+    tr = json.loads((demo / "02_transcript.json").read_text(encoding="utf-8"))
+    src = numbers_in("".join(s["text"] for s in tr["segments"]))
+    for clip in scripts["clips"]:
+        for ser in clip["chart"]["series"]:
+            for p in ser["points"]:
+                assert value_stated(p["value"], p["unit"], src), (clip["segment_id"], p)

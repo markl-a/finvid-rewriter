@@ -310,7 +310,10 @@
     const chart = rv.chart_path ? `<img src="/files/${encodeURIComponent(vid)}/${esc(rv.chart_path)}" alt="chart">` : '';
     const plag = `重疊 ${((clip.plagiarism_overlap || 0) * 100).toFixed(1)}% · 最長共同字串 ${clip.plagiarism_lcs || 0} 字 · ` +
       (clip.plagiarism_ok ? '<span class="badge b-ok">通過</span>' : '<span class="badge b-bad">超標</span>') +
-      (clip.rewrite_attempts ? ` <span class="badge b-warn">重寫 ${clip.rewrite_attempts} 次</span>` : '');
+      (clip.rewrite_attempts ? ` <span class="badge b-warn">重寫 ${clip.rewrite_attempts} 次</span>` : '') +
+      ((clip.numbers_unverified || []).length
+        ? ` · 數字溯源 <span class="badge b-warn">${clip.numbers_unverified.filter(t => t.startsWith('chart:')).length} 個圖表點被丟棄</span> <span class="small muted">${esc(clip.numbers_unverified.join('、'))}</span>`
+        : ' · 數字溯源 <span class="badge b-ok">全部可在逐字稿找到</span>');
     return `<div class="card clip">
       ${video}
       <h3 style="margin-top:8px">${esc(clip.title)} <span class="small muted">#${esc(clip.segment_id)}${rv.duration_sec ? ' · ' + Number(rv.duration_sec).toFixed(0) + 's' : ''}</span></h3>

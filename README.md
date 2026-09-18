@@ -64,6 +64,7 @@ finvid run
 01_audio.wav          前處理後的音檔
 01_info.json          標題、頻道、原始/處理後長度
 02_transcript.json    帶時間戳的繁中逐字稿
+03a_pass_a.json       Pass A（便宜模型）的原始回覆快取：Pass B 中途中止或只改 Pass B 提示詞時，不再付一次 Pass A
 03_scripts.json       所有候選段落（含被跳過的原因）+ 通過的腳本 + 被退回的腳本
 04_clips/clip_XX.mp4  短影音（1080×1920）
 04_clips/chart_XX.png 用數據重繪的圖表
@@ -131,6 +132,7 @@ brief 點名的三件事，對應的機制：
 **「是否避免同一支影片重複處理」**
 - `data/<video_id>/manifest.json` 記每個 stage 的設定 hash 與輸出檔。設定沒變、檔案還在就跳過。
 - 改了第 2 步的設定，第 3、4 步自動失效重做，第 1 步不動。
+- 第 3 步內部再細分：Pass A 的回覆另外以「模型 + 提示詞」hash 快取在 `03a_pass_a.json`，Pass B 觸發預算閘或改提示詞重跑時只付 Pass B。
 - 同一支影片同時只允許一個執行：`data/<video_id>/.running.lock`（跨程序，CLI 與 web UI 共用；兩個終端同時 `finvid run` 第二個會被擋下，exit 4），逾 3 小時的殘留鎖視為當機遺留自動接手。
 
 **額外護欄**
@@ -144,6 +146,7 @@ brief 點名的三件事，對應的機制：
 
 - **改寫非照抄**：Pass B 的提示詞明確要求重組句構、換用詞、數字不變。之後用程式檢查：腳本的 6 字元 n-gram 有多少比例出現在原逐字稿（門檻 15%）、最長共同子字串（門檻 12 字）。超標退回重寫一次，仍超標就丟到 `rejected_clips`，不進生成。
 - **圖表自製**：腳本只帶數據（`chart.series[].points`），圖表由 matplotlib 從數據畫，不碰原影片任何畫面。
+- **數字溯源閘**（$0，`pipeline/numbers.py`）：提示詞要求「數字只能來自逐字稿」是承諾，不是檢查。程式把逐字稿裡所有數字（含中文數字：一萬五、五千八百億、四成、百分之四十）解析成數值，每個圖表點的值必須能在逐字稿或 Pass A 抽出的 `data_points` 找到，找不到就丟掉該點（剩不到 2 點就整張圖不畫）；口白裡追不到出處的數字記在 `numbers_unverified` 供人工檢視（四則運算後的數字如「差了四千」是合理改寫，不判死）。demo 三支腳本的圖表點全部可溯源。
 - **註明出處**：「根據 TVBS《健康2.0》報導指出」由程式模板注入每支腳本的第 1 或 2 句，不靠 LLM 記得寫；影片底部固定顯示「資料來源」字卡。
 - 不使用原影片的畫面、聲音；產出只包含改寫後的文字、自製圖表、合成語音。
 
@@ -175,6 +178,7 @@ pipeline/
   pricing.py        單價表（唯一寫死數字的地方）
   llm.py            LLM 呼叫封裝，回 JSON + 成本
   plagiarism.py     n-gram 重疊 / 最長共同子字串
+  numbers.py        數字溯源：中文/阿拉伯數字解析，圖表點必須在逐字稿出現過
   stages/           s1_download s2_transcribe s3_script s4_render
   render/           tts chart compose fonts
   ui/               server.py + static/index.html

@@ -103,6 +103,9 @@ class ScriptClip(BaseModel):
     plagiarism_lcs: int = 0
     plagiarism_ok: bool = True
     rewrite_attempts: int = 0
+    # filled by the number provenance gate: chart points not stated in the transcript are dropped
+    # ("chart:<label>=<value><unit>"); spoken numbers that can't be traced are listed ("text:<token>")
+    numbers_unverified: list[str] = Field(default_factory=list)
 
     @property
     def full_text(self) -> str:
