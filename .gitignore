@@ -13,3 +13,4 @@ data/demo/04_clips/*_line_*.png
 *.egg-info/
 build/
 dist/
+.claude/
