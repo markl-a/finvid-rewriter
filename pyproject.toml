@@ -1,0 +1,38 @@
+[project]
+name = "finvid-rewriter"
+version = "0.1.0"
+description = "Cost-aware pipeline: YouTube finance video -> transcript -> rewritten short-video scripts -> rendered vertical clips"
+requires-python = ">=3.11"
+dependencies = [
+    "yt-dlp>=2025.1.1",
+    "openai>=1.60",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.2",
+    "python-dotenv>=1.0",
+    "typer>=0.12",
+    "rich>=13.7",
+    "opencc-python-reimplemented>=0.1.7",
+    "matplotlib>=3.8",
+    "pillow>=10.2",
+    "edge-tts>=6.1",
+    "fastapi>=0.110",
+    "uvicorn>=0.29",
+    "httpx>=0.27",
+]
+
+[project.optional-dependencies]
+local-stt = ["faster-whisper>=1.0"]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+finvid = "pipeline.cli:app"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pipeline*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
