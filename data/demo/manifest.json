@@ -50,8 +50,9 @@
         "model": "gpt-4o-mini-transcribe",
         "chunks": 2,
         "seconds_billed": 948.4,
-        "segments": 2,
-        "chars": 3996
+        "segments": 142,
+        "chars": 3592,
+        "note": "segments/chars refreshed from 02_transcript.json after text_to_segments() re-split the same STT text; seconds_billed and costs unchanged"
       },
       "costs": [
         {

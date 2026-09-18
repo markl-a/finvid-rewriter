@@ -1,6 +1,7 @@
 """RunContext + the stage runner that enforces caching, dry-run and the budget guard."""
 from __future__ import annotations
 
+import os
 import re
 import time
 from dataclasses import dataclass, field
@@ -9,6 +10,49 @@ from typing import Any, Callable
 
 from .config import DATA_DIR, Settings
 from .manifest import Manifest, StageResult
+
+
+class AlreadyRunning(RuntimeError):
+    """Another process is working on this video right now (the cross-process duplicate guard)."""
+
+
+LOCK_FILE = ".running.lock"
+LOCK_STALE_SEC = 3 * 3600  # a crashed process (kill -9, power loss) can't clean up; treat old locks as dead
+
+
+class WorkdirLock:
+    """`data/<id>/.running.lock` so two terminals (or the web UI + a terminal) can't process the
+    same video at once and bill twice. O_EXCL creation is atomic on every OS; the file holds
+    pid + start time so a stale lock from a crashed run can be identified and taken over."""
+
+    def __init__(self, workdir: Path):
+        self.path = workdir / LOCK_FILE
+        self.fd: int | None = None
+
+    def acquire(self) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        for _ in range(2):
+            try:
+                self.fd = os.open(self.path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                os.write(self.fd, f"pid={os.getpid()} started={time.time():.0f}".encode())
+                os.close(self.fd)
+                return
+            except FileExistsError:
+                try:
+                    age = time.time() - self.path.stat().st_mtime
+                    holder = self.path.read_text(encoding="utf-8").strip()
+                except OSError:
+                    continue  # released between our two calls; retry
+                if age > LOCK_STALE_SEC:
+                    self.path.unlink(missing_ok=True)  # stale: take over
+                    continue
+                raise AlreadyRunning(
+                    f"{self.path.parent.name} is already being processed ({holder}, {age:.0f}s ago). "
+                    f"Wait for it, or delete {self.path} if that process is dead.")
+        raise AlreadyRunning(f"could not acquire {self.path}")
+
+    def release(self) -> None:
+        self.path.unlink(missing_ok=True)
 
 
 class BudgetExceeded(RuntimeError):
@@ -39,10 +83,11 @@ class RunContext:
                data_dir: Path | None = None) -> "RunContext":
         vid = extract_video_id(url)
         workdir = (data_dir or DATA_DIR) / vid
-        workdir.mkdir(parents=True, exist_ok=True)
+        if not dry_run:
+            workdir.mkdir(parents=True, exist_ok=True)
         return cls(
             settings=settings, video_url=url, video_id=vid, workdir=workdir,
-            manifest=Manifest(workdir, vid, url), dry_run=dry_run, force=force,
+            manifest=Manifest(workdir, vid, url, persist=not dry_run), dry_run=dry_run, force=force,
             max_clips=max_clips if max_clips is not None else settings.max_clips, log=log,
         )
 
@@ -87,7 +132,9 @@ def run_stage(ctx: RunContext, name: str, cfg: dict[str, Any],
         ctx.stages_run.append(name)
         ctx.log(f"[{name}] done in {dt:.1f}s, cost ${result.usd:.4f}")
     else:
-        ctx.log(f"[{name}] estimate ${result.estimated_usd:.4f}")
+        ref = sum(c.usd for c in result.costs if c.provider == "reference")
+        est = result.estimated_usd - ref
+        ctx.log(f"[{name}] estimate ${est:.4f}" + (f" (+ ${ref:.2f} reference only, not charged)" if ref else ""))
     ctx.stage_results[name] = result
     return result
 

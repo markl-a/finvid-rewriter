@@ -5,7 +5,7 @@ description = "Cost-aware pipeline: YouTube finance video -> transcript -> rewri
 requires-python = ">=3.11"
 dependencies = [
     "yt-dlp>=2025.1.1",
-    "openai>=1.60",
+    "openai>=1.60,<4",  # demo ran on 3.16; the 3.x client API is what llm.py / s2 / tts.py use
     "pydantic>=2.6",
     "pydantic-settings>=2.2",
     "python-dotenv>=1.0",

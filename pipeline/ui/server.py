@@ -243,7 +243,8 @@ def list_videos() -> list[dict]:
             "spent_usd": _spent(m),
             "stages_done": [s for s in STAGE_ORDER if s in stages],
         })
-    out.sort(key=lambda v: v["updated"], reverse=True)
+    # folders with finished stages first (so a stray empty manifest never hides the demo), newest first
+    out.sort(key=lambda v: (bool(v["stages_done"]), v["updated"]), reverse=True)
     return out
 
 

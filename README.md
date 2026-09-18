@@ -14,13 +14,15 @@
 | | | **合計** | **$0.108** |
 
 對照：同樣 3 支用 AI 影片 API 生成約 $29.5。**第二次跑同一支影片：$0**（manifest 快取全命中）。
-數字來自 [data/demo/manifest.json](data/demo/manifest.json)，`finvid costs` 可重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
+數字來自 [data/demo/manifest.json](data/demo/manifest.json)，clone 下來不用 key 就能用 `finvid costs --url demo` 重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
 
 ---
 
 ## 1. 在本機跑起來
 
-需求：Python 3.11+、ffmpeg、一把 OpenAI API key（免費額度即可，整支 demo 約 $0.1）。
+需求：Python 3.11+、ffmpeg、一把 OpenAI API key。整支 demo 約 $0.1，帳戶有幾塊美金餘額（或新帳號的試用額度）就夠；
+沒有 key 也能做三件事：跑測試、`finvid run --dry-run` 看估算、`finvid serve` 看 repo 內附的 demo 產出。
+第 2 步可改 `FINVID_STT_PROVIDER=local`（本機 faster-whisper，$0）；第 3 步的 LLM 目前只接 OpenAI。
 
 ```bash
 # 1. 取得程式碼
@@ -32,8 +34,9 @@ brew install ffmpeg               # macOS
 sudo apt install ffmpeg           # Ubuntu
 
 # 3. 建虛擬環境並安裝
-python -m venv .venv
+python -m venv .venv              # Windows 若 python 沒反應（Store 別名），改用 py -3.12 -m venv .venv
 .venv\Scripts\activate            # Windows；macOS/Linux 用 source .venv/bin/activate
+#   PowerShell 被 ExecutionPolicy 擋住時：Set-ExecutionPolicy -Scope Process Bypass，或不啟用、直接用 .venv\Scripts\finvid.exe
 pip install -e ".[dev]"
 
 # 4. 填 key
@@ -41,13 +44,13 @@ copy .env.example .env            # macOS/Linux 用 cp
 # 打開 .env，把 OPENAI_API_KEY 填進去
 ```
 
-### 先看估算（不打任何 API、不下載）
+### 先看估算（不打付費 API、不下載音訊）
 
 ```bash
 finvid run --dry-run
 ```
 
-會印出每一步的預估費用與總額。預設 `FINVID_MAX_BUDGET_USD=1.00`，任何一次呼叫會讓總額超過就直接中止。
+會印出每一步的預估費用與總額。dry-run 唯一的網路動作是用 yt-dlp 向 YouTube 抓影片長度與標題（免費），不會建立 `data/<video_id>/`。預設 `FINVID_MAX_BUDGET_USD=1.00`，任何一次呼叫會讓總額超過就直接中止。
 
 ### 真的跑
 
@@ -102,7 +105,8 @@ finvid serve
 ```bash
 finvid run --until s2         # 只跑到逐字稿
 finvid run --max-clips 1      # 只產 1 支
-finvid costs                  # 印成本帳本
+finvid costs                  # 印本片（KjAI9r8tnOs）的成本帳本
+finvid costs --url demo       # 印 repo 內附 demo 的帳本（不需 key）
 python -m pytest -q           # 單元測試（不需要 key、不需要網路）
 ```
 
@@ -127,10 +131,10 @@ brief 點名的三件事，對應的機制：
 **「是否避免同一支影片重複處理」**
 - `data/<video_id>/manifest.json` 記每個 stage 的設定 hash 與輸出檔。設定沒變、檔案還在就跳過。
 - 改了第 2 步的設定，第 3、4 步自動失效重做，第 1 步不動。
-- web UI 對同一支影片同時只允許一個執行。
+- 同一支影片同時只允許一個執行：`data/<video_id>/.running.lock`（跨程序，CLI 與 web UI 共用；兩個終端同時 `finvid run` 第二個會被擋下，exit 4），逾 3 小時的殘留鎖視為當機遺留自動接手。
 
 **額外護欄**
-- `--dry-run`：全流程只估算不呼叫。
+- `--dry-run`：全流程只估算，不呼叫付費 API、不下載音訊、不寫任何檔案（只向 YouTube 抓 metadata）。
 - `FINVID_MAX_BUDGET_USD`：每次 API 呼叫前先算預估費用，超過就在呼叫前中止。
 - 每筆 API 用量（秒數、tokens、字元）和單價都寫進 manifest，`finvid costs` 或 web UI 可查。
 

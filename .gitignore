@@ -3,6 +3,7 @@
 __pycache__/
 *.pyc
 data/*/
+**/.running.lock
 !data/demo/
 data/demo/*.wav
 data/demo/*.m4a

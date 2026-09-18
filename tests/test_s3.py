@@ -140,6 +140,7 @@ def make_ctx(tmp_path: Path, *, dry_run: bool = False, with_transcript: bool = T
     ctx = RunContext.create(make_settings(**settings_over), VIDEO_ID, dry_run=dry_run,
                             log=logs.append, data_dir=tmp_path)
     if with_transcript:
+        ctx.workdir.mkdir(parents=True, exist_ok=True)  # a dry-run ctx no longer creates it
         info = {"video_id": VIDEO_ID, "title": "房價還會漲嗎？", "channel": "健康2.0",
                 "url": f"https://www.youtube.com/watch?v={VIDEO_ID}", "original_duration_sec": 300,
                 "processed_duration_sec": 300, "audio_path": "01_audio.wav", "preprocessing": {}}

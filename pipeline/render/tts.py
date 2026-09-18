@@ -12,7 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Awaitable, Callable, TypeVar
 
-from ..config import Settings
+from ..config import Settings, check_openai_key
 from ..models import CostEntry
 from ..pricing import tts_cost
 
@@ -85,8 +85,7 @@ def _synth_edge(settings: Settings, text: str, out_mp3: Path) -> None:
 
 
 def _synth_openai(settings: Settings, text: str, out_mp3: Path) -> None:
-    if not settings.openai_api_key:
-        raise RuntimeError("FINVID_TTS_PROVIDER=openai but OPENAI_API_KEY is not set")
+    check_openai_key(settings)  # FINVID_TTS_PROVIDER=openai
     from openai import OpenAI
 
     client = OpenAI(api_key=settings.openai_api_key)

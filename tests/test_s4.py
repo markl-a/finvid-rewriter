@@ -191,6 +191,7 @@ def test_dry_run_calls_no_tts(tmp_path, monkeypatch):
 
     monkeypatch.setattr(tts, "synthesize", boom)
     ctx = _ctx(tmp_path, _settings(tts_provider="openai"), dry_run=True)
+    ctx.workdir.mkdir(parents=True, exist_ok=True)  # simulate s3 having run earlier (dry-run creates nothing)
     _scripts_json(ctx.workdir)
     res = run_stage(ctx, s4.STAGE, s4.stage_config(ctx), s4.execute)
     assert res.outputs == {}

@@ -23,8 +23,8 @@ def _ctx(tmp_path: Path, **kw) -> RunContext:
 def _fake_stage(calls: list, usd: float = 0.01):
     def fn(ctx: RunContext) -> StageResult:
         calls.append(1)
-        out = ctx.path("out.txt")
-        out.write_text("x", encoding="utf-8")
+        if not ctx.dry_run:  # a real stage writes nothing in dry-run
+            ctx.path("out.txt").write_text("x", encoding="utf-8")
         cost = CostEntry(stage="t", provider="p", model="m", unit="call", quantity=1,
                          unit_price_usd=usd, usd=usd, estimated=ctx.dry_run)
         return StageResult(outputs={} if ctx.dry_run else {"out": "out.txt"}, costs=[cost])
@@ -86,7 +86,7 @@ def test_dry_run_records_nothing_and_spends_nothing(tmp_path):
     assert r.estimated_usd == pytest.approx(0.01) and r.usd == 0
     assert ctx.spent_usd == 0
     assert ctx.manifest.data["stages"] == {}
-    assert not ctx.path("manifest.json").read_text(encoding="utf-8").count("s1_download")
+    assert not ctx.workdir.exists()  # dry-run leaves no data/<id>/ folder behind
 
 
 def test_budget_guard_aborts_before_call(tmp_path):
@@ -114,3 +114,45 @@ def test_llm_cost_split():
     entries = llm_cost("s3_script", "openai", "gpt-5-mini", 1_000_000, 100_000)
     assert entries[0].usd == pytest.approx(0.25)
     assert entries[1].usd == pytest.approx(0.20)
+
+
+def test_workdir_lock_blocks_second_process_and_recovers_stale(tmp_path):
+    from pipeline.context import AlreadyRunning, WorkdirLock, LOCK_FILE, LOCK_STALE_SEC
+    import os, time
+
+    a = WorkdirLock(tmp_path / "vid")
+    a.acquire()
+    assert (tmp_path / "vid" / LOCK_FILE).exists()
+    with pytest.raises(AlreadyRunning):
+        WorkdirLock(tmp_path / "vid").acquire()  # same video, second "terminal"
+    a.release()
+    assert not (tmp_path / "vid" / LOCK_FILE).exists()
+
+    # a lock left by a crashed run is taken over once it is older than LOCK_STALE_SEC
+    b = WorkdirLock(tmp_path / "vid")
+    b.acquire()
+    old = time.time() - LOCK_STALE_SEC - 10
+    os.utime(b.path, (old, old))
+    WorkdirLock(tmp_path / "vid").acquire()
+    assert b.path.exists()
+    b.release()
+
+
+def test_run_pipeline_releases_lock_even_on_budget_abort(tmp_path, monkeypatch):
+    from pipeline import cli
+    from pipeline.context import LOCK_FILE
+
+    class Boom:
+        STAGE = "s1_download"
+        @staticmethod
+        def stage_config(ctx): return {"x": 1}
+        @staticmethod
+        def execute(ctx):
+            assert (ctx.workdir / LOCK_FILE).exists()  # held while stages run
+            raise BudgetExceeded("nope")
+
+    monkeypatch.setattr(cli, "_stages", lambda: [Boom])
+    monkeypatch.setattr(cli, "get_settings", lambda: Settings(_env_file=None, openai_api_key="x", stt_provider="local"))
+    with pytest.raises(BudgetExceeded):
+        cli.run_pipeline("https://www.youtube.com/watch?v=KjAI9r8tnOs", data_dir=tmp_path, log=lambda m: None, until="s1")
+    assert not (tmp_path / "KjAI9r8tnOs" / LOCK_FILE).exists()

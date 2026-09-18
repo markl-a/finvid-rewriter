@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .config import Settings
+from .config import Settings, check_openai_key
 from .models import CostEntry
 from .pricing import llm_cost
 
@@ -20,8 +20,7 @@ def _openai(settings: Settings):
     if _client is None:
         from openai import OpenAI
 
-        if not settings.openai_api_key:
-            raise RuntimeError("OPENAI_API_KEY is not set. Copy .env.example to .env and fill it in.")
+        check_openai_key(settings)
         _client = OpenAI(api_key=settings.openai_api_key)
     return _client
 

@@ -88,5 +88,20 @@ def _find_bin(name: str, explicit: str | None) -> str:
     )
 
 
+class ConfigError(RuntimeError):
+    """A .env / settings problem that should stop the run before any download or API call."""
+
+
+def check_openai_key(s: Settings) -> None:
+    """Fail fast, with a message that points at .env, instead of downloading 15 minutes of audio
+    and then dying inside the OpenAI client with an obscure UnicodeEncodeError."""
+    key = (s.openai_api_key or "").strip()
+    hint = "Copy .env.example to .env and put your key in OPENAI_API_KEY (or export it)."
+    if not key:
+        raise ConfigError(f"OPENAI_API_KEY is not set. {hint}")
+    if not key.isascii() or " " in key:
+        raise ConfigError(f"OPENAI_API_KEY looks like a placeholder ({key[:12]!r}...). {hint}")
+
+
 def get_settings() -> Settings:
     return Settings()

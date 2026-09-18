@@ -50,7 +50,7 @@ class StageResult:
 
 
 class Manifest:
-    def __init__(self, workdir: Path, video_id: str, url: str):
+    def __init__(self, workdir: Path, video_id: str, url: str, *, persist: bool = True):
         self.workdir = workdir
         self.path = workdir / "manifest.json"
         self.data: dict[str, Any]
@@ -65,7 +65,8 @@ class Manifest:
                 "stages": {},
                 "runs": [],
             }
-            self.save()
+            if persist:  # a --dry-run must not leave an empty data/<id>/ behind
+                self.save()
 
     # ---- persistence ----
     def save(self) -> None:

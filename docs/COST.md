@@ -1,7 +1,7 @@
 # 成本假設與決策說明
 
 所有單價集中在 [`pipeline/pricing.py`](../pipeline/pricing.py)，2026-09-18 依 OpenAI 官方定價頁確認。
-實際花費以 `data/<video_id>/manifest.json` 的帳本為準（`finvid costs` 可印）。
+實際花費以 `data/<video_id>/manifest.json` 的帳本為準（`finvid costs` 可印；repo 內附的 demo 用 `finvid costs --url demo`）。
 
 ## 1. 單價表
 
