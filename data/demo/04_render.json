@@ -1,0 +1,26 @@
+{
+  "video_id": "KjAI9r8tnOs",
+  "clips": [
+    {
+      "segment_id": 4,
+      "title": "新青安月付差多大？",
+      "video_path": "04_clips/clip_04.mp4",
+      "duration_sec": 35.92,
+      "chart_path": "04_clips/chart_04.png"
+    },
+    {
+      "segment_id": 5,
+      "title": "新青安隱憂一次看",
+      "video_path": "04_clips/clip_05.mp4",
+      "duration_sec": 42.1,
+      "chart_path": "04_clips/chart_05.png"
+    },
+    {
+      "segment_id": 8,
+      "title": "回檔與房貸壓力",
+      "video_path": "04_clips/clip_08.mp4",
+      "duration_sec": 39.95,
+      "chart_path": "04_clips/chart_08.png"
+    }
+  ]
+}

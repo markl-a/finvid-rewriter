@@ -29,7 +29,7 @@ from ..models import (
 )
 
 STAGE = "s3_script"
-PROMPT_VERSION = 3  # bump whenever a prompt below changes -> invalidates the s3 cache
+PROMPT_VERSION = 6  # bump whenever a prompt below changes -> invalidates the s3 cache
 
 TRANSCRIPT_FILE = "02_transcript.json"
 INFO_FILE = "01_info.json"
@@ -39,21 +39,23 @@ ATTRIBUTION_TEMPLATE = "根據{source}報導指出"
 
 # token budget assumptions used for dry-run and pre-flight estimates
 PASS_A_PROMPT_TOKENS = 600     # system prompt + formatting overhead
-PASS_A_OUTPUT_TOKENS = 1500    # 5-10 segments of JSON
+PASS_A_OUTPUT_TOKENS = 3300    # 8 segments of JSON + reasoning tokens (measured 3271 on the demo video)
 PASS_B_INPUT_TOKENS = 1200     # system prompt + segment brief + ~2 min of transcript
-PASS_B_OUTPUT_TOKENS = 900     # one script JSON (+ reasoning tokens on gpt-5)
+PASS_B_OUTPUT_TOKENS = 1600    # one script JSON + reasoning tokens on gpt-5 (measured 1534-1753)
 FALLBACK_TRANSCRIPT_CHARS = 3000
 ZH_CHARS_PER_SEC = 4.0         # spoken Mandarin, used only when s2 gave a duration but no text
 
 PLAGIARISM_CONTEXT_SEC = 20.0  # widen the transcript window when checking a clip
 DUP_JACCARD = 0.5              # char-bigram Jaccard on topic+summary -> "duplicate"
+DUP_SHARED_NUMBERS = 2         # >= this many identical (value, unit) data points -> same story
+DUP_TIME_OVERLAP = 0.5         # >= this share of the shorter segment's time range overlaps -> same footage
 
 # ---------------------------------------------------------------- prompts
 
 PASS_A_SYSTEM = """你是財經短影音製作人。使用者會給你一段附時間戳的節目逐字稿（繁體中文，主題是台灣房市、房貸與利率）。
 任務：把逐字稿切成 5 到 10 個「主題連貫」的段落，每段輸出以下欄位：
 - id：整數，從 1 開始遞增
-- start、end：該段在逐字稿中的起訖秒數（數字）
+- start、end：該段在逐字稿中的起訖秒數，必須是純數字（例如 785，不要寫 13:05）
 - topic：主題，15 字以內
 - summary：摘要，60 字以內
 - key_points：2 到 4 條重點（字串陣列）
@@ -70,6 +72,7 @@ PASS_B_SYSTEM = """你是財經短影音編劇。使用者會給你一個主題�
 4. lines 裡必須有一句「完整包含」這個出處句：「{attribution}」，而且要放在第 1 或第 2 句。
 5. 如果 has_chart_data 為 true，提供 chart：{{"type": "bar" 或 "line", "title": 圖表標題, "y_label": Y 軸說明, "series": [{{"name": 系列名稱, "points": [{{"label": 標籤, "value": 數字, "unit": 單位}}]}}]}}，只能使用 data_points 或逐字稿裡真的出現過的數字；否則 chart 為 null。
 6. title：15 字以內。est_seconds：預估播放秒數（數字）。
+7. 台詞裡的金額用台灣口語單位寫：1000萬、2380萬、40萬/坪、1.5萬，不要展開成 10000000 或用科學記號。同一張 chart 的所有 points 必須是同一個單位，不同單位的數字不要放進同一張圖。
 只回傳 JSON，格式如下，不要輸出任何其他文字：
 {{"segment_id": 整數, "title": "...", "hook": "...", "lines": [{{"text": "...", "emphasis": false}}], "chart": null 或 chart 物件, "attribution": "{attribution}", "est_seconds": 35}}"""
 
@@ -151,9 +154,17 @@ def transcript_slice(transcript: Transcript, start: float, end: float, pad: floa
 
 
 def _as_float(v: Any, default: float = 0.0) -> float:
+    """Accept numbers, numeric strings, and mm:ss / h:mm:ss timestamps (the model sometimes
+    echoes the [mm:ss] format it saw in the transcript)."""
     try:
         if isinstance(v, str):
             v = v.replace(",", "").replace("%", "").strip()
+            if ":" in v:
+                parts = [float(x) for x in v.split(":")]
+                total = 0.0
+                for x in parts:
+                    total = total * 60 + x
+                return total
         return float(v)
     except (TypeError, ValueError):
         return default
@@ -253,6 +264,32 @@ def topic_similarity(a: TopicSegment, b: TopicSegment) -> float:
     return len(x & y) / len(x | y)
 
 
+def shared_numbers(a: TopicSegment, b: TopicSegment) -> int:
+    """Identical (value, unit) pairs. Paraphrased Chinese summaries defeat text similarity
+    (a clear duplicate scored Jaccard 0.19 on the demo video), but two segments quoting the
+    same figures are telling the same story."""
+    x = {(p.value, p.unit) for p in a.data_points}
+    y = {(p.value, p.unit) for p in b.data_points}
+    return len(x & y)
+
+
+def time_overlap(a: TopicSegment, b: TopicSegment) -> float:
+    """Overlap as a share of the shorter segment (Pass A sometimes returns overlapping ranges)."""
+    inter = max(0.0, min(a.end, b.end) - max(a.start, b.start))
+    shorter = max(1e-6, min(a.end - a.start, b.end - b.start))
+    return inter / shorter
+
+
+def duplicate_reason(seg: TopicSegment, chosen: TopicSegment) -> str | None:
+    if topic_similarity(seg, chosen) >= DUP_JACCARD:
+        return f"duplicate of segment {chosen.id} (text similarity)"
+    if shared_numbers(seg, chosen) >= DUP_SHARED_NUMBERS:
+        return f"duplicate of segment {chosen.id} (same figures)"
+    if time_overlap(seg, chosen) >= DUP_TIME_OVERLAP:
+        return f"duplicate of segment {chosen.id} (time overlap)"
+    return None
+
+
 def select_segments(segments: list[TopicSegment], *, threshold: int,
                     max_clips: int) -> list[TopicSegment]:
     """Pure-Python selection gate. Mutates selected/skip_reason on each segment and
@@ -267,9 +304,9 @@ def select_segments(segments: list[TopicSegment], *, threshold: int,
         if seg.hook_score < threshold:
             seg.skip_reason = f"hook_score {seg.hook_score} < threshold {threshold}"
             continue
-        dup = next((c for c in chosen if topic_similarity(seg, c) >= DUP_JACCARD), None)
+        dup = next((r for r in (duplicate_reason(seg, c) for c in chosen) if r), None)
         if dup is not None:
-            seg.skip_reason = f"duplicate of segment {dup.id}"
+            seg.skip_reason = dup
             continue
         if len(chosen) >= max_clips:
             seg.skip_reason = "over max_clips budget"
@@ -289,6 +326,42 @@ def _log_gate_table(segments: list[TopicSegment], log) -> None:
 
 # ---------------------------------------------------------------- Pass B parsing
 
+_SCI = re.compile(r"(\d+(?:\.\d+)?)[eE]\+?(\d+)")
+_BIG = re.compile(r"(?<![\d.])(\d{5,})(?![\d.])")
+
+
+def humanize_numbers(text: str) -> str:
+    """Deterministic clean-up of numbers the model expanded: 1e+07 -> 1000萬, 23800000 -> 2380萬,
+    400000 -> 40萬. Numbers below 10000 are left alone (15000 is fine to say)."""
+    def _sci(m: re.Match) -> str:
+        return str(int(float(m.group(1)) * (10 ** int(m.group(2)))))
+    text = _SCI.sub(_sci, text)
+
+    def _big(m: re.Match) -> str:
+        n = int(m.group(1))
+        if n < 100000:
+            return m.group(1)
+        if n % 100000000 == 0:
+            return f"{n // 100000000}億"
+        if n >= 100000000:
+            return f"{n / 100000000:g}億"
+        w = n / 10000
+        return f"{int(w)}萬" if w == int(w) else f"{w:g}萬"
+    return _BIG.sub(_big, text)
+
+
+def unify_chart_units(points: list[DataPoint], log=None) -> list[DataPoint]:
+    """Keep only points sharing the most common unit; a bar chart mixing 元/坪 and 元 is wrong."""
+    if len(points) < 2:
+        return points
+    units = [p.unit for p in points]
+    major = max(set(units), key=units.count)
+    kept = [p for p in points if p.unit == major]
+    if log and len(kept) != len(points):
+        log(f"[s3] chart: dropped {len(points) - len(kept)} point(s) whose unit != '{major}'")
+    return kept if len(kept) >= 2 else points[:0]
+
+
 def parse_pass_b(payload: dict[str, Any], seg: TopicSegment, attribution: str) -> ScriptClip:
     if not isinstance(payload, dict):
         raise ValueError("Pass B reply is not a JSON object")
@@ -303,7 +376,7 @@ def parse_pass_b(payload: dict[str, Any], seg: TopicSegment, attribution: str) -
         else:
             continue
         if text:
-            lines.append(ScriptLine(text=text, emphasis=emphasis))
+            lines.append(ScriptLine(text=humanize_numbers(text), emphasis=emphasis))
     chart: ChartSpec | None = None
     raw_chart = payload.get("chart")
     if seg.has_chart_data and isinstance(raw_chart, dict):
@@ -311,7 +384,7 @@ def parse_pass_b(payload: dict[str, Any], seg: TopicSegment, attribution: str) -
         for s in raw_chart.get("series") or []:
             if not isinstance(s, dict):
                 continue
-            pts = parse_data_points(s.get("points"))
+            pts = unify_chart_units(parse_data_points(s.get("points")))
             if pts:
                 series.append({"name": str(s.get("name", "")), "points": pts})
         if series:
@@ -319,12 +392,14 @@ def parse_pass_b(payload: dict[str, Any], seg: TopicSegment, attribution: str) -
             chart = ChartSpec(type=ctype if ctype in ("bar", "line") else "bar",
                               title=str(raw_chart.get("title") or seg.topic),
                               y_label=str(raw_chart.get("y_label", "") or ""), series=series)
-    hook = str(payload.get("hook", "")).strip()
+    hook = humanize_numbers(str(payload.get("hook", "")).strip())
     if not hook and lines:
         hook = lines[0].text
+    if lines and plagiarism.normalise(lines[0].text) == plagiarism.normalise(hook):
+        lines.pop(0)  # the hook is spoken first anyway; don't say it twice
     clip = ScriptClip(
         segment_id=seg.id,
-        title=str(payload.get("title") or seg.topic).strip(),
+        title=humanize_numbers(str(payload.get("title") or seg.topic).strip()),
         hook=hook,
         lines=lines,
         chart=chart,

@@ -212,7 +212,7 @@ def test_ngram_overlap_edge_cases():
 # ------------------------------------------------------------------ gate
 
 def _seg(i, score, chart, topic, summary, start=None):
-    dps = [DataPoint(label="a", value=1), DataPoint(label="b", value=2)] if chart else []
+    dps = [DataPoint(label="a", value=i * 10), DataPoint(label="b", value=i * 10 + 1)] if chart else []
     return TopicSegment(id=i, start=start if start is not None else i * 30.0, end=(i + 1) * 30.0,
                         topic=topic, summary=summary, data_points=dps, has_chart_data=chart,
                         hook_score=score)
@@ -223,7 +223,7 @@ def test_gate_threshold_dedup_and_chart_preference():
         _seg(1, 5, True, "房價所得比", "台北15.7倍新北12.3倍家庭要16年"),
         _seg(2, 2, True, "節目開場", "主持人問候觀眾介紹來賓"),
         _seg(3, 4, False, "買房建議", "房貸不超過收入三分之一自備款兩成"),
-        _seg(4, 5, True, "房價所得比", "台北15.7倍新北12.3倍比去年更高"),   # dup of 1
+        _seg(4, 5, True, "房價所得比", "台北15.7倍新北12.3倍比去年更高"),   # dup of 1 (text)
         _seg(5, 1, False, "廣告", "進廣告休息一下"),
         _seg(6, 3, True, "租金漲幅", "台北租金漲3.2%新北2.8%"),
         _seg(7, 4, True, "央行升息", "重貼現率1.875%升到2%月增600元"),
@@ -236,7 +236,7 @@ def test_gate_threshold_dedup_and_chart_preference():
     by_id = {s.id: s for s in segs}
     assert by_id[2].skip_reason == "hook_score 2 < threshold 3"
     assert by_id[5].skip_reason == "hook_score 1 < threshold 3"
-    assert by_id[4].skip_reason == "duplicate of segment 1"
+    assert by_id[4].skip_reason == "duplicate of segment 1 (text similarity)"
     assert by_id[8].skip_reason == "over max_clips budget"
     assert by_id[3].skip_reason == "over max_clips budget"
     assert all(s.selected for s in chosen)
@@ -284,7 +284,7 @@ def test_execute_end_to_end(tmp_path, monkeypatch):
             assert s["skip_reason"], s
     reasons = {s["id"]: s["skip_reason"] for s in data["segments"]}
     assert reasons[3].startswith("hook_score 1 <")
-    assert reasons[5] == "duplicate of segment 1"
+    assert reasons[5] .startswith("duplicate of segment 1")
     assert reasons[4] == "over max_clips budget"
 
     # clips
@@ -363,7 +363,7 @@ def test_budget_guard_fires_before_pass_b(tmp_path, monkeypatch):
     fake = FakeChat()
     monkeypatch.setattr("pipeline.stages.s3_script.chat_json", fake)
     # enough for Pass A on the cheap model, not for a strong-model call
-    ctx, _ = make_ctx(tmp_path, max_budget_usd=0.005)
+    ctx, _ = make_ctx(tmp_path, max_budget_usd=0.012)
     with pytest.raises(BudgetExceeded):
         s3_script.execute(ctx)
     assert len(fake.calls) == 1  # aborted before the first Pass B call
@@ -427,3 +427,25 @@ def test_format_transcript_merges_tiny_segments():
     lines = text.splitlines()
     assert 1 < len(lines) < 30
     assert lines[0].startswith("[00:00] ")
+
+
+# ------------------------------------------------------------------ number clean-up
+
+def test_humanize_numbers_taiwanese_units():
+    h = s3_script.humanize_numbers
+    assert h("示範貸款1e+07元") == "示範貸款1000萬元"
+    assert h("開價23800000元") == "開價2380萬元"
+    assert h("突破400000元/坪") == "突破40萬元/坪"
+    assert h("案量580000000000元") == "案量5800億元"
+    assert h("月付15000元") == "月付15000元"  # small numbers untouched
+    assert h("總價2000萬、利率2.5%") == "總價2000萬、利率2.5%"
+
+
+def test_unify_chart_units_drops_minority_unit():
+    pts = [DataPoint(label="原", value=30, unit="萬/坪"), DataPoint(label="新", value=40, unit="萬/坪"),
+           DataPoint(label="個案", value=2380, unit="萬")]
+    kept = s3_script.unify_chart_units(pts)
+    assert [p.label for p in kept] == ["原", "新"]
+    # if nothing shares a unit, no chart is better than a wrong chart
+    assert s3_script.unify_chart_units([DataPoint(label="a", value=1, unit="x"),
+                                        DataPoint(label="b", value=2, unit="y")]) == []

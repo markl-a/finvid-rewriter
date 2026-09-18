@@ -234,7 +234,8 @@ def list_videos() -> list[dict]:
         info = _read_json(d / "01_info.json") or {}
         stages = m.get("stages") or {}
         out.append({
-            "video_id": m.get("video_id") or d.name,
+            "video_id": d.name,  # folder name = identifier (data/demo/ is a checked-in copy of a run)
+            "source_video_id": m.get("video_id") or d.name,
             "url": m.get("url") or "",
             "title": (info.get("title") if isinstance(info, dict) else None)
             or (stages.get("s1_download") or {}).get("meta", {}).get("title") or "",

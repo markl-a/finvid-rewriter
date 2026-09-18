@@ -1,0 +1,22 @@
+{
+  "video_id": "KjAI9r8tnOs",
+  "title": "減輕利息推高房價！房市洗牌逐漸台北化！【精華版】",
+  "channel": "HEALTH 2.0",
+  "url": "https://www.youtube.com/watch?v=KjAI9r8tnOs",
+  "original_duration_sec": 950.0,
+  "processed_duration_sec": 948.411,
+  "audio_path": "01_audio.wav",
+  "preprocessing": {
+    "sample_rate": 16000,
+    "mono": true,
+    "remove_silence": true,
+    "silence_min_sec": 0.7,
+    "silence_threshold_db": -35,
+    "trim_head_sec": 0.0,
+    "trim_tail_sec": 0.0,
+    "speedup": 1.0,
+    "raw_bytes": 15375886,
+    "wav_bytes": 30349232,
+    "ffmpeg_filter": "silenceremove=stop_periods=-1:stop_duration=0.7:stop_threshold=-35dB"
+  }
+}

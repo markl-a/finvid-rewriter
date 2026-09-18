@@ -98,10 +98,28 @@ def _to_tw(text: str) -> str:
 _cc = None
 
 
+TARGET_SEGMENT_CHARS = 30  # merge phrase fragments up to roughly this size
+
+
 def text_to_segments(text: str, start: float, end: float) -> list[TranscriptSegment]:
-    """Split plain text on sentence punctuation; assign times proportionally to char count.
-    Used for models that do not return timestamps (gpt-4o-*-transcribe)."""
-    parts = [p.strip() for p in _SENT_SPLIT.split(text) if p and p.strip()]
+    """Split plain text into phrase-sized segments; assign times proportionally to char count.
+    Used for models that do not return timestamps (gpt-4o-*-transcribe).
+
+    gpt-4o-mini-transcribe often emits Chinese with NO punctuation, only spaces between
+    phrases, so both sentence punctuation and whitespace count as boundaries. Fragments are
+    then merged up to ~TARGET_SEGMENT_CHARS so timestamps stay meaningful (a 600 s chunk as a
+    single segment would make stage 3's time ranges useless)."""
+    parts: list[str] = []
+    for sentence in _SENT_SPLIT.split(text):  # punctuation = hard boundary
+        buf = ""
+        for w in sentence.split():  # whitespace = soft boundary, merged up to the target size
+            if buf and len(buf) + len(w) > TARGET_SEGMENT_CHARS:
+                parts.append(buf)
+                buf = w
+            else:
+                buf = (buf + w) if buf else w
+        if buf:
+            parts.append(buf)
     if not parts:
         return []
     total = sum(len(p) for p in parts) or 1

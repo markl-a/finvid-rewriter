@@ -190,7 +190,7 @@
     box.innerHTML = list.map(v => `
       <button type="button" data-vid="${esc(v.video_id)}" class="${v.video_id === currentVid ? 'active' : ''}">
         <span class="t" title="${esc(v.title)}">${esc(v.title || v.video_id)}</span>
-        <span class="small muted">${esc(v.video_id)} · 累計 <b class="num">${usd(v.spent_usd)}</b> · ${(v.stages_done || []).map(s => s.slice(0, 2)).join(' ') || '—'} · ${esc(v.updated)}</span>
+        <span class="small muted">${esc(v.video_id)}${v.source_video_id && v.source_video_id !== v.video_id ? ' (' + esc(v.source_video_id) + ')' : ''} · 累計 <b class="num">${usd(v.spent_usd)}</b> · ${(v.stages_done || []).map(s => s.slice(0, 2)).join(' ') || '—'} · ${esc(v.updated)}</span>
       </button>`).join('');
     box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => loadVideo(b.dataset.vid)));
   }

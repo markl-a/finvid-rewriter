@@ -20,7 +20,7 @@ from ..render.chart import render_chart
 from ..render.compose import compose_clip
 
 STAGE = "s4_render"
-RENDER_VERSION = 1  # bump when layout/encoding changes so cached clips are re-rendered
+RENDER_VERSION = 2  # bump when layout/encoding changes so cached clips are re-rendered
 
 SCRIPTS_FILE = "03_scripts.json"
 DRY_RUN_CHARS_PER_CLIP = 200

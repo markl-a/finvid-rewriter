@@ -1,0 +1,379 @@
+{
+  "video_id": "KjAI9r8tnOs",
+  "url": "https://www.youtube.com/watch?v=KjAI9r8tnOs",
+  "created": "2026-09-18T23:44:48",
+  "updated": "2026-09-19T00:33:43",
+  "stages": {
+    "s1_download": {
+      "config_hash": "3756799fdb581f62",
+      "config": {
+        "video_id": "KjAI9r8tnOs",
+        "sample_rate": 16000,
+        "remove_silence": true,
+        "trim_head_sec": 0.0,
+        "trim_tail_sec": 0.0,
+        "speedup": 1.0
+      },
+      "outputs": {
+        "audio": "01_audio.wav",
+        "info": "01_info.json"
+      },
+      "meta": {
+        "title": "減輕利息推高房價！房市洗牌逐漸台北化！【精華版】",
+        "channel": "HEALTH 2.0",
+        "original_duration_sec": 950.0,
+        "processed_duration_sec": 948.4,
+        "seconds_saved": 1.6,
+        "percent_saved": 0.2,
+        "raw_bytes": 15375886,
+        "wav_bytes": 30349232
+      },
+      "costs": [],
+      "finished_at": "2026-09-18T23:44:56"
+    },
+    "s2_transcribe": {
+      "config_hash": "d16ea26347ce60a1",
+      "config": {
+        "video_id": "KjAI9r8tnOs",
+        "stt_provider": "openai",
+        "stt_model": "gpt-4o-mini-transcribe",
+        "language": "zh",
+        "chunk_seconds": 600,
+        "opencc": "s2twp",
+        "s1_config_hash": "3756799fdb581f62"
+      },
+      "outputs": {
+        "transcript": "02_transcript.json"
+      },
+      "meta": {
+        "provider": "openai",
+        "model": "gpt-4o-mini-transcribe",
+        "chunks": 2,
+        "seconds_billed": 948.4,
+        "segments": 2,
+        "chars": 3996
+      },
+      "costs": [
+        {
+          "stage": "s2_transcribe",
+          "provider": "openai",
+          "model": "gpt-4o-mini-transcribe",
+          "unit": "minute",
+          "quantity": 15.807,
+          "unit_price_usd": 0.003,
+          "usd": 0.047421,
+          "estimated": false,
+          "note": "948s audio"
+        }
+      ],
+      "finished_at": "2026-09-19T00:14:37"
+    },
+    "s3_script": {
+      "config_hash": "fa0446f0b93f06a9",
+      "config": {
+        "video_id": "KjAI9r8tnOs",
+        "prompt_version": 6,
+        "llm_cheap_model": "gpt-5-mini",
+        "llm_strong_model": "gpt-5",
+        "hook_threshold": 3,
+        "max_clips": 3,
+        "plagiarism_ngram": 6,
+        "plagiarism_max_overlap": 0.15,
+        "plagiarism_max_lcs": 12,
+        "s2_config_hash": "d16ea26347ce60a1"
+      },
+      "outputs": {
+        "scripts": "03_scripts.json"
+      },
+      "meta": {
+        "source_name": "TVBS《健康2.0》",
+        "title": "減輕利息推高房價！房市洗牌逐漸台北化！【精華版】",
+        "segments_total": 8,
+        "segments_selected": 3,
+        "clips_accepted": 3,
+        "clips_rejected": 0,
+        "clips_unparsable": 0,
+        "pass_b_skipped_saved_usd_est": 0.0525
+      },
+      "costs": [
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5-mini",
+          "unit": "input_tokens",
+          "quantity": 4354.0,
+          "unit_price_usd": 2.5e-07,
+          "usd": 0.001089,
+          "estimated": false,
+          "note": "pass A"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5-mini",
+          "unit": "output_tokens",
+          "quantity": 3271.0,
+          "unit_price_usd": 2e-06,
+          "usd": 0.006542,
+          "estimated": false,
+          "note": "pass A"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "input_tokens",
+          "quantity": 1286.0,
+          "unit_price_usd": 1.25e-06,
+          "usd": 0.001607,
+          "estimated": false,
+          "note": "pass B seg 4"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "output_tokens",
+          "quantity": 1534.0,
+          "unit_price_usd": 1e-05,
+          "usd": 0.01534,
+          "estimated": false,
+          "note": "pass B seg 4"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "input_tokens",
+          "quantity": 1204.0,
+          "unit_price_usd": 1.25e-06,
+          "usd": 0.001505,
+          "estimated": false,
+          "note": "pass B seg 5"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "output_tokens",
+          "quantity": 1753.0,
+          "unit_price_usd": 1e-05,
+          "usd": 0.01753,
+          "estimated": false,
+          "note": "pass B seg 5"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "input_tokens",
+          "quantity": 1210.0,
+          "unit_price_usd": 1.25e-06,
+          "usd": 0.001512,
+          "estimated": false,
+          "note": "pass B seg 8"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "output_tokens",
+          "quantity": 1578.0,
+          "unit_price_usd": 1e-05,
+          "usd": 0.01578,
+          "estimated": false,
+          "note": "pass B seg 8"
+        }
+      ],
+      "finished_at": "2026-09-19T00:31:12"
+    },
+    "s4_render": {
+      "config_hash": "b2fb8412d1ac84f1",
+      "config": {
+        "video_id": "KjAI9r8tnOs",
+        "render_version": 2,
+        "tts_provider": "edge",
+        "tts_voice": "zh-TW-HsiaoChenNeural",
+        "width": 1080,
+        "height": 1920,
+        "max_clips": 3,
+        "s3_config_hash": "fa0446f0b93f06a9"
+      },
+      "outputs": {
+        "render": "04_render.json",
+        "clip_4": "04_clips/clip_04.mp4",
+        "clip_5": "04_clips/clip_05.mp4",
+        "clip_8": "04_clips/clip_08.mp4"
+      },
+      "meta": {
+        "clips_rendered": 3,
+        "total_seconds": 118.0,
+        "tts_usd": 0.0,
+        "reference_ai_video_usd": 29.5
+      },
+      "costs": [
+        {
+          "stage": "s4_render",
+          "provider": "edge",
+          "model": "edge-tts",
+          "unit": "characters",
+          "quantity": 120.0,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "clip 4: 120 chars"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "reference",
+          "model": "ai-video-api",
+          "unit": "second",
+          "quantity": 35.9,
+          "unit_price_usd": 0.25,
+          "usd": 8.975,
+          "estimated": true,
+          "note": "clip 4"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "edge",
+          "model": "edge-tts",
+          "unit": "characters",
+          "quantity": 151.0,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "clip 5: 151 chars"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "reference",
+          "model": "ai-video-api",
+          "unit": "second",
+          "quantity": 42.1,
+          "unit_price_usd": 0.25,
+          "usd": 10.525,
+          "estimated": true,
+          "note": "clip 5"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "edge",
+          "model": "edge-tts",
+          "unit": "characters",
+          "quantity": 135.0,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "clip 8: 135 chars"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "reference",
+          "model": "ai-video-api",
+          "unit": "second",
+          "quantity": 40.0,
+          "unit_price_usd": 0.25,
+          "usd": 10.0,
+          "estimated": true,
+          "note": "clip 8"
+        }
+      ],
+      "finished_at": "2026-09-19T00:33:43"
+    }
+  },
+  "runs": [
+    {
+      "started": 1789748043.5693717,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s2_transcribe"
+      ],
+      "stages_cached": [
+        "s1_download"
+      ],
+      "usd": 0.047421
+    },
+    {
+      "started": 1789748264.0304155,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s3_script"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe"
+      ],
+      "usd": 0.044933
+    },
+    {
+      "started": 1789748602.0580204,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s3_script"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe"
+      ],
+      "usd": 0.067347
+    },
+    {
+      "started": 1789748769.95101,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s3_script"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe"
+      ],
+      "usd": 0.051917
+    },
+    {
+      "started": 1789748943.3203897,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s3_script"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe"
+      ],
+      "usd": 0.060905
+    },
+    {
+      "started": 1789749116.1755884,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789749196.8032877,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    }
+  ]
+}

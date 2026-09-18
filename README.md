@@ -5,15 +5,16 @@
 
 四個步驟都在 `pipeline/stages/`，每一步都先估算、再判斷要不要送、送過就不重送：
 
-| 步驟 | 做什麼 | 工具 | 本片估算（`finvid run --dry-run`） |
+| 步驟 | 做什麼 | 工具 | 本片實際花費（帳本） |
 |---|---|---|---|
 | 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
-| 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047 |
-| 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.036 |
-| 4 `s4_render` | 免費 TTS + matplotlib 重繪圖表 + ffmpeg 合成字幕 | edge-tts + matplotlib + PIL + ffmpeg | $0 |
-| | | **合計** | **$0.083** |
+| 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
+| 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.061（8 段候選，3 段寫腳本，省下 5 次強模型呼叫） |
+| 4 `s4_render` | 免費 TTS + matplotlib 重繪圖表 + ffmpeg 合成字幕 | edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 118 秒） |
+| | | **合計** | **$0.108** |
 
-對照：同樣 3 支用 AI 影片 API 生成約 $26。**第二次跑同一支影片：$0**（manifest 快取全命中）。實際花費以 `data/<video_id>/manifest.json` 帳本為準。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
+對照：同樣 3 支用 AI 影片 API 生成約 $29.5。**第二次跑同一支影片：$0**（manifest 快取全命中）。
+數字來自 [data/demo/manifest.json](data/demo/manifest.json)，`finvid costs` 可重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
 
 ---
 
@@ -69,6 +70,23 @@ manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 
 再跑一次 `finvid run`：四個 stage 全部 cache hit，花費 $0。要重做用 `--force`，或 `finvid clean --stage s3` 只重做第 3 步以後。
 
+### Demo 產出（不用跑也看得到）
+
+[data/demo/](data/demo/) 是本片實際跑出來的結果：逐字稿、8 段候選與每段的選中或跳過原因、3 支腳本（含反抄襲檢查數字）、3 支 mp4、3 張重繪的圖表、完整成本帳本。
+
+| 段落 | hook 分數 | 有數據 | 決定 |
+|---|---|---|---|
+| 1 臺北購屋門檻與貸款負擔 | 4 | 是 | 跳過：與段落 4 數字相同 |
+| 2 中古屋年限與屋況取捨 | 2 | 否 | 跳過：分數低於門檻 3 |
+| 3 購屋者的個人規劃與壓力 | 3 | 否 | 跳過：與段落 4 數字相同 |
+| 4 新青安方案的月付與年限比較 | 5 | 是 | **選中** → 「新青安月付差多大？」 |
+| 5 新青安的制度性疑慮 | 4 | 是 | **選中** → 「新青安隱憂一次看」 |
+| 6 臺南安平區與個案價格 | 4 | 是 | 跳過：超過 max_clips |
+| 7 臺中房價飆升與高價盤整區 | 4 | 是 | 跳過：超過 max_clips |
+| 8 市場回檔與房貸負擔率 | 5 | 是 | **選中** → 「回檔與房貸壓力」 |
+
+三支腳本的反抄襲檢查：6 字 n-gram 重疊率都是 0%，最長共同子字串 3–5 字（都是數字或專有名詞）。
+
 ### 本機 web 介面（把成本決策攤開來看）
 
 ```bash
@@ -76,6 +94,8 @@ finvid serve
 ```
 
 開 http://127.0.0.1:8000 ：可以貼網址執行、看即時 log、每個 stage 的花費與快取狀態、哪些段落被選中／跳過及原因、實際花費 vs 「不篩選＋用 AI 影片 API」的對照、直接預覽產出的影片。
+
+**沒有 key 也能看**：clone 下來直接 `finvid serve`，左邊「已處理影片」會列出 `demo`（repo 內附的實跑結果），點進去就是完整儀表板與三支影片。
 
 ### 其他指令
 
@@ -164,6 +184,6 @@ data/<video_id>/    產出與 manifest（gitignore；repo 內保留一份 demo �
 ## 6. 已知限制
 
 - YouTube 偶爾擋 yt-dlp。失敗時先 `pip install -U yt-dlp`；仍不行可把音檔手動放到 `data/<video_id>/01_audio.wav`。
-- `gpt-4o-mini-transcribe` 不回傳片段時間戳，逐字稿的時間是依每個 600 秒分段內的字數線性內插；切換到 `whisper-1` 可得到精確時間戳（貴一倍）。
+- `gpt-4o-mini-transcribe` 不回傳片段時間戳，中文輸出也沒有標點、只用空格分句。逐字稿依空格切成約 30 字的段落，時間是依每個 600 秒分段內的字數線性內插；切換到 `whisper-1` 可得到精確時間戳（貴一倍）。
 - edge-tts 需要網路；CJK 字型在 Windows 用微軟正黑體、macOS 用 PingFang，Linux 需自行安裝 Noto Sans CJK 並設 `FINVID_FONT`。
 - 單價表是 2026-09-18 查的，變動請改 `pipeline/pricing.py`。
