@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>finvid 成本儀表板</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #fff; --ink: #1c2330; --muted: #6b7280; --line: #e5e7eb;
+    --accent: #2563eb; --ok: #15803d; --ok-bg: #ecfdf5; --warn: #b45309; --warn-bg: #fffbeb;
+    --bad: #b91c1c; --bad-bg: #fef2f2; --cache: #6d28d9; --cache-bg: #f5f3ff; --mono: ui-monospace, Consolas, "SF Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; margin: 0; }
+  h2 { font-size: 16px; margin: 24px 0 8px; }
+  h3 { font-size: 14px; margin: 0 0 6px; }
+  header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 16px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+  header .tag { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+  .muted { color: var(--muted); }
+  .small { font-size: 12px; }
+  .num { font-variant-numeric: tabular-nums; }
+  .big { font-size: 22px; font-weight: 600; }
+  form.run { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: end; }
+  form.run label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
+  form.run label.chk { flex-direction: row; align-items: center; gap: 4px; color: var(--ink); font-size: 13px; padding-bottom: 6px; }
+  form.run input[type=text] { min-width: 320px; flex: 1; }
+  input, select, button { font: inherit; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
+  input[type=number] { width: 70px; }
+  button.primary { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; padding: 6px 16px; }
+  button.primary:disabled { opacity: .5; cursor: default; }
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 12px; border: 1px solid transparent; white-space: nowrap; }
+  .b-running { background: #eff6ff; color: var(--accent); border-color: #bfdbfe; }
+  .b-done, .b-ok { background: var(--ok-bg); color: var(--ok); border-color: #a7f3d0; }
+  .b-error, .b-bad { background: var(--bad-bg); color: var(--bad); border-color: #fecaca; }
+  .b-budget_exceeded, .b-warn { background: var(--warn-bg); color: var(--warn); border-color: #fde68a; }
+  .b-cache { background: var(--cache-bg); color: var(--cache); border-color: #ddd6fe; }
+  .b-idle, .b-missing { background: #f3f4f6; color: var(--muted); border-color: var(--line); }
+  #log { font-family: var(--mono); font-size: 12px; white-space: pre-wrap; background: #0f172a; color: #e2e8f0; border-radius: 6px; padding: 10px; height: 220px; overflow: auto; margin-top: 10px; }
+  #log:empty { display: none; }
+  .videos { display: flex; flex-wrap: wrap; gap: 8px; }
+  .videos button { text-align: left; cursor: pointer; border-radius: 8px; padding: 8px 10px; max-width: 100%; }
+  .videos button.active { border-color: var(--accent); box-shadow: 0 0 0 2px #bfdbfe; }
+  .videos .t { font-weight: 600; display: block; max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; font-size: 12px; white-space: nowrap; }
+  td.r, th.r { text-align: right; }
+  tr.est td { color: var(--muted); font-style: italic; }
+  tr.sel { background: var(--ok-bg); }
+  tr.ref td { color: var(--warn); }
+  .wrap { overflow-x: auto; }
+  .stage .kv { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; font-size: 12px; }
+  .stage .kv dt { color: var(--muted); } .stage .kv dd { margin: 0; }
+  .stage .head { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 6px; }
+  .cost .lbl { font-size: 12px; color: var(--muted); }
+  .clips { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .clip video { width: 100%; max-height: 480px; background: #000; border-radius: 6px; }
+  .clip img { max-width: 100%; border: 1px solid var(--line); border-radius: 6px; margin-top: 6px; }
+  .clip ol { padding-left: 20px; margin: 6px 0; } .clip li.em { font-weight: 600; }
+  .hook { font-weight: 600; margin: 6px 0 2px; }
+  .attr { font-size: 12px; color: var(--muted); border-left: 3px solid var(--line); padding-left: 8px; margin-top: 6px; }
+  .star { color: #d97706; letter-spacing: 1px; }
+  .star .off { color: #d1d5db; }
+  .empty { color: var(--muted); padding: 12px; text-align: center; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .banner { padding: 8px 12px; border-radius: 6px; margin: 8px 0; }
+  .banner.err { background: var(--bad-bg); color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>finvid — 財經影片 → 短影音 改寫流程</h1>
+    <span class="tag">成本意識流程：先估再送、能不送就不送、送過不重送</span>
+  </header>
+
+  <h2>執行</h2>
+  <div class="card">
+    <form class="run" id="runForm">
+      <label>YouTube URL <input type="text" id="url" value="https://www.youtube.com/watch?v=KjAI9r8tnOs" required></label>
+      <label>max_clips <input type="number" id="maxClips" value="3" min="1" max="10"></label>
+      <label>until <select id="until"><option value="all">all</option><option value="s1">s1 下載</option><option value="s2">s2 逐字稿</option><option value="s3">s3 腳本</option><option value="s4">s4 合成</option></select></label>
+      <label class="chk"><input type="checkbox" id="dryRun"> dry-run（只估算，不打 API）</label>
+      <label class="chk"><input type="checkbox" id="force"> force（忽略快取）</label>
+      <button class="primary" type="submit" id="runBtn">開始</button>
+      <span id="runStatus" class="badge b-idle">閒置</span>
+    </form>
+    <div id="runMsg"></div>
+    <div id="log"></div>
+  </div>
+
+  <h2>已處理影片 <span class="muted small">（data/&lt;video_id&gt;/manifest.json）</span></h2>
+  <div class="videos" id="videos"><span class="empty">尚無資料</span></div>
+
+  <div id="dash" hidden>
+    <h2 id="dashTitle"></h2>
+    <div class="muted small" id="dashSub"></div>
+
+    <h2>階段 <span class="muted small">快取命中 = 這次 $0</span></h2>
+    <div class="grid" id="stages"></div>
+
+    <h2>成本</h2>
+    <div class="grid" id="costs"></div>
+    <div class="card" style="margin-top:10px">
+      <details open><summary>成本帳本（灰字 = 估算；橘字 = 對照參考，不計入花費）</summary>
+        <div class="wrap"><table id="ledger"></table></div>
+      </details>
+    </div>
+
+    <h2>逐字稿分段 → 篩選 <span class="muted small">只有「選中」的段落才送強模型與合成</span></h2>
+    <div class="card"><div class="wrap"><table id="segments"></table></div></div>
+
+    <h2>產出短影音</h2>
+    <div class="clips" id="clips"></div>
+    <div id="rejected"></div>
+  </div>
+</main>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const usd = (v, d = 4) => '$' + (Number(v) || 0).toFixed(d);
+  const sec = (v) => { v = Math.round(Number(v) || 0); const m = Math.floor(v / 60), s = v % 60; return m + ':' + String(s).padStart(2, '0'); };
+  const pct = (v) => (Number(v) || 0).toFixed(1) + '%';
+  const stars = (n) => { n = Math.max(0, Math.min(5, Number(n) || 0)); return '<span class="star">' + '★'.repeat(n) + '<span class="off">' + '★'.repeat(5 - n) + '</span></span>'; };
+  const STAGES = [
+    ['s1_download', 's1 下載 + 前處理'], ['s2_transcribe', 's2 逐字稿 (STT)'],
+    ['s3_script', 's3 篩選 + 改寫 (LLM)'], ['s4_render', 's4 合成 (TTS+圖表+ffmpeg)'],
+  ];
+  let currentVid = null, pollTimer = null;
+
+  // ---------------- run form
+  $('runForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const body = {
+      url: $('url').value.trim(), max_clips: Number($('maxClips').value) || 3,
+      dry_run: $('dryRun').checked, force: $('force').checked, until: $('until').value,
+    };
+    $('runMsg').innerHTML = '';
+    $('log').textContent = '';
+    let r;
+    try {
+      r = await fetch('/api/runs', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    } catch (err) { setStatus('error', '連線失敗'); return; }
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      $('runMsg').innerHTML = '<div class="banner err">' + esc(r.status + ' ' + (j.detail || r.statusText)) + '</div>';
+      setStatus('error', r.status === 409 ? '重複執行被擋下' : '失敗');
+      return;
+    }
+    const { run_id, video_id } = await r.json();
+    currentVid = video_id;
+    $('runBtn').disabled = true;
+    setStatus('running', '執行中 ' + video_id);
+    poll(run_id);
+  });
+
+  function setStatus(kind, text) {
+    const b = $('runStatus'); b.className = 'badge b-' + kind; b.textContent = text;
+  }
+
+  async function poll(runId) {
+    clearTimeout(pollTimer);
+    let rec;
+    try { rec = await (await fetch('/api/runs/' + runId)).json(); } catch (e) { pollTimer = setTimeout(() => poll(runId), 1500); return; }
+    const log = $('log');
+    const atBottom = log.scrollTop + log.clientHeight >= log.scrollHeight - 8;
+    log.textContent = (rec.logs || []).join('\n');
+    if (atBottom) log.scrollTop = log.scrollHeight;
+    if (rec.status === 'running') { pollTimer = setTimeout(() => poll(runId), 1500); return; }
+    $('runBtn').disabled = false;
+    const label = { done: '完成', error: '錯誤', budget_exceeded: '預算護欄擋下' }[rec.status] || rec.status;
+    setStatus(rec.status, label + ' ' + rec.video_id);
+    if (rec.error) $('runMsg').innerHTML = '<div class="banner err">' + esc(rec.error) + '</div>';
+    await loadVideos();
+    loadVideo(rec.video_id);
+  }
+
+  // ---------------- video picker
+  async function loadVideos() {
+    let list = [];
+    try { list = await (await fetch('/api/videos')).json(); } catch (e) {}
+    const box = $('videos');
+    if (!list.length) { box.innerHTML = '<span class="empty">尚無資料，先執行一次</span>'; return; }
+    box.innerHTML = list.map(v => `
+      <button type="button" data-vid="${esc(v.video_id)}" class="${v.video_id === currentVid ? 'active' : ''}">
+        <span class="t" title="${esc(v.title)}">${esc(v.title || v.video_id)}</span>
+        <span class="small muted">${esc(v.video_id)} · 累計 <b class="num">${usd(v.spent_usd)}</b> · ${(v.stages_done || []).map(s => s.slice(0, 2)).join(' ') || '—'} · ${esc(v.updated)}</span>
+      </button>`).join('');
+    box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => loadVideo(b.dataset.vid)));
+  }
+
+  // ---------------- dashboard
+  async function loadVideo(vid) {
+    currentVid = vid;
+    document.querySelectorAll('#videos button').forEach(b => b.classList.toggle('active', b.dataset.vid === vid));
+    let d;
+    try {
+      const r = await fetch('/api/videos/' + encodeURIComponent(vid));
+      if (!r.ok) throw new Error(r.status);
+      d = await r.json();
+    } catch (e) { $('dash').hidden = true; return; }
+    $('dash').hidden = false;
+    const info = d.info || {}, cs = d.cost_summary || {}, ps = cs.per_stage || {};
+    $('dashTitle').textContent = info.title || vid;
+    $('dashSub').innerHTML = [info.channel, vid, (d.manifest || {}).url, '執行 ' + (cs.runs || 0) + ' 次']
+      .filter(Boolean).map(esc).join(' · ');
+
+    renderStages(d, ps);
+    renderCosts(cs);
+    renderLedger(cs.ledger || []);
+    renderSegments(d.scripts);
+    renderClips(d);
+    $('dash').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function stageMeta(key, d, st) {
+    const m = st.meta || {}, info = d.info || {}, tr = d.transcript || {}, sc = d.scripts || {}, re = d.render || {};
+    const kv = [];
+    if (key === 's1_download') {
+      const o = m.original_duration_sec ?? info.original_duration_sec, p = m.processed_duration_sec ?? info.processed_duration_sec;
+      if (o != null) kv.push(['原始 → 前處理後', `${sec(o)} → ${sec(p)}`]);
+      if (o) kv.push(['秒數省下', pct(m.percent_saved ?? (100 * (o - (p || 0)) / o))]);
+      if (info.preprocessing && Object.keys(info.preprocessing).length) kv.push(['前處理', Object.entries(info.preprocessing).map(([k, v]) => k + '=' + v).join(', ')]);
+    } else if (key === 's2_transcribe') {
+      if (m.seconds_billed != null) kv.push(['計費分鐘', (m.seconds_billed / 60).toFixed(2) + ' min']);
+      if (m.provider) kv.push(['模型', m.provider + '/' + m.model]);
+      const n = m.segments ?? tr.segments, c = m.chars ?? tr.chars;
+      if (n != null) kv.push(['分段 / 字數', n + ' / ' + (c ?? '?')]);
+      if (m.chunks) kv.push(['分塊送出', m.chunks]);
+    } else if (key === 's3_script') {
+      const segs = sc.segments || [], sel = segs.filter(s => s.selected).length;
+      if (segs.length) kv.push(['候選段落 / 選中', segs.length + ' / ' + sel]);
+      if (sc.clips) kv.push(['通過抄襲閘 / 退回', (sc.clips || []).length + ' / ' + (sc.rejected_clips || []).length]);
+      if (m.cheap_model || m.pass_a_model) kv.push(['Pass A', m.cheap_model || m.pass_a_model]);
+      if (m.strong_model || m.pass_b_model) kv.push(['Pass B', m.strong_model || m.pass_b_model]);
+    } else if (key === 's4_render') {
+      const clips = re.clips || [];
+      if (clips.length) kv.push(['短影音 / 總秒數', clips.length + ' / ' + clips.reduce((a, c) => a + (c.duration_sec || 0), 0).toFixed(0) + 's']);
+      if (m.tts_provider || m.tts) kv.push(['TTS', m.tts_provider || m.tts]);
+      if (m.tts_chars) kv.push(['TTS 字元', m.tts_chars]);
+    }
+    return kv;
+  }
+
+  function renderStages(d, ps) {
+    $('stages').innerHTML = STAGES.map(([key, name]) => {
+      const st = ps[key] || {};
+      let badge = '<span class="badge b-missing">未執行</span>';
+      if (st.present && st.cached_last_run) badge = '<span class="badge b-cache">快取命中（上次執行）</span>';
+      else if (st.present) badge = '<span class="badge b-ok">完成</span>';
+      const kv = stageMeta(key, d, st);
+      const cost = st.present
+        ? `<div class="big num">${usd(st.usd)}</div><div class="small muted">${st.cached_last_run ? '本次 $0，已省下' : '實際花費'}${st.estimated_usd ? ' · 估算 ' + usd(st.estimated_usd) : ''}</div>`
+        : '<div class="big num muted">—</div>';
+      return `<div class="card stage">
+        <div class="head"><h3>${esc(name)}</h3>${badge}</div>
+        ${cost}
+        <dl class="kv">${kv.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+        ${st.finished_at ? `<div class="small muted">${esc(st.finished_at)}</div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function renderCosts(cs) {
+    const nb = cs.naive_breakdown || {};
+    const ratio = cs.spent_usd > 0 && cs.naive_alternative_usd > 0 ? (cs.naive_alternative_usd / cs.spent_usd).toFixed(0) + '×' : null;
+    const cards = [
+      ['本次實際花費', usd(cs.last_run_usd), cs.last_run ? `快取：${(cs.last_run.stages_cached || []).map(s => s.slice(0, 2)).join(' ') || '無'} · 執行：${(cs.last_run.stages_run || []).map(s => s.slice(0, 2)).join(' ') || '無'}` : '尚無執行紀錄', ''],
+      ['累計實際花費', usd(cs.spent_usd), '所有 stage 真實 API 花費（不含估算與對照）' + (cs.estimated_usd ? ` · dry-run 估算 ${usd(cs.estimated_usd)}` : ''), ''],
+      ['快取省下', usd(cs.saved_by_cache_usd), '上次執行命中快取的 stage 原本要花的錢', 'ok'],
+      ['對照：不篩選 + AI 影片 API', usd(cs.naive_alternative_usd, 2),
+        `Pass B 全 ${nb.segments_total || 0} 段 ${usd(nb.pass_b_all_segments_usd)}（實際只送 ${nb.segments_selected || 0} 段 ${usd(nb.pass_b_actual_usd)}）+ AI 影片 API ${usd(nb.reference_ai_video_usd, 2)}` + (ratio ? ` · 約 ${ratio}` : ''), 'warn'],
+    ];
+    $('costs').innerHTML = cards.map(([l, v, s, k]) => `<div class="card cost"><div class="lbl">${esc(l)}</div><div class="big num" style="color:${k === 'ok' ? 'var(--ok)' : k === 'warn' ? 'var(--warn)' : 'inherit'}">${v}</div><div class="small muted">${esc(s)}</div></div>`).join('');
+  }
+
+  function renderLedger(rows) {
+    if (!rows.length) { $('ledger').innerHTML = '<tr><td class="empty">無帳本紀錄</td></tr>'; return; }
+    $('ledger').innerHTML = `<tr><th>stage</th><th>provider/model</th><th>unit</th><th class="r">qty</th><th class="r">單價</th><th class="r">USD</th><th>類型</th><th>note</th></tr>` +
+      rows.map(c => {
+        const ref = c.provider === 'reference';
+        const cls = ref ? 'ref' : (c.estimated ? 'est' : '');
+        const tag = ref ? '<span class="badge b-warn">對照參考</span>' : (c.estimated ? '<span class="badge b-idle">估算</span>' : '<span class="badge b-ok">實際</span>');
+        return `<tr class="${cls}"><td>${esc(c.stage)}</td><td>${esc(c.provider + '/' + c.model)}</td><td>${esc(c.unit)}</td><td class="r num">${esc(Number(c.quantity).toLocaleString())}</td><td class="r num">${esc(Number(c.unit_price_usd).toPrecision(3))}</td><td class="r num">${usd(c.usd, 6)}</td><td>${tag}</td><td class="small">${esc(c.note)}</td></tr>`;
+      }).join('');
+  }
+
+  function renderSegments(sc) {
+    const segs = (sc && sc.segments) || [];
+    if (!segs.length) { $('segments').innerHTML = '<tr><td class="empty">尚無 s3 結果（03_scripts.json）</td></tr>'; return; }
+    $('segments').innerHTML = `<tr><th>#</th><th>時間</th><th>主題</th><th>hook</th><th>有數據?</th><th>狀態</th></tr>` +
+      segs.map(s => `<tr class="${s.selected ? 'sel' : ''}">
+        <td class="num">${esc(s.id)}</td><td class="num">${sec(s.start)}–${sec(s.end)}</td>
+        <td><b>${esc(s.topic)}</b><div class="small muted">${esc(s.summary)}</div></td>
+        <td title="hook_score ${esc(s.hook_score)}">${stars(s.hook_score)}</td>
+        <td>${s.has_chart_data ? '有 (' + (s.data_points || []).length + ')' : '—'}</td>
+        <td>${s.selected ? '<span class="badge b-ok">選中</span>' : '<span class="badge b-idle">跳過</span> <span class="small muted">' + esc(s.skip_reason || '') + '</span>'}</td>
+      </tr>`).join('');
+  }
+
+  function clipCard(vid, clip, rendered) {
+    const rv = rendered || {};
+    const video = rv.video_path ? `<video controls preload="metadata" src="/files/${encodeURIComponent(vid)}/${esc(rv.video_path)}"></video>` : '';
+    const chart = rv.chart_path ? `<img src="/files/${encodeURIComponent(vid)}/${esc(rv.chart_path)}" alt="chart">` : '';
+    const plag = `重疊 ${((clip.plagiarism_overlap || 0) * 100).toFixed(1)}% · 最長共同字串 ${clip.plagiarism_lcs || 0} 字 · ` +
+      (clip.plagiarism_ok ? '<span class="badge b-ok">通過</span>' : '<span class="badge b-bad">超標</span>') +
+      (clip.rewrite_attempts ? ` <span class="badge b-warn">重寫 ${clip.rewrite_attempts} 次</span>` : '');
+    return `<div class="card clip">
+      ${video}
+      <h3 style="margin-top:8px">${esc(clip.title)} <span class="small muted">#${esc(clip.segment_id)}${rv.duration_sec ? ' · ' + Number(rv.duration_sec).toFixed(0) + 's' : ''}</span></h3>
+      <div class="hook">${esc(clip.hook)}</div>
+      <ol>${(clip.lines || []).map(l => `<li class="${l.emphasis ? 'em' : ''}">${esc(l.text)}</li>`).join('')}</ol>
+      ${clip.attribution ? `<div class="attr">${esc(clip.attribution)}</div>` : ''}
+      <div class="small" style="margin-top:6px">反抄襲：${plag}</div>
+      ${chart}
+    </div>`;
+  }
+
+  function renderClips(d) {
+    const vid = d.video_id, sc = d.scripts || {}, rendered = ((d.render || {}).clips) || [];
+    const byId = Object.fromEntries(rendered.map(c => [c.segment_id, c]));
+    const clips = sc.clips || [];
+    $('clips').innerHTML = clips.length ? clips.map(c => clipCard(vid, c, byId[c.segment_id])).join('')
+      : '<div class="empty">尚無腳本（s3 未執行或全部退回）</div>';
+    const rej = sc.rejected_clips || [];
+    $('rejected').innerHTML = rej.length ? `<h3 style="margin-top:14px">退回的腳本（抄襲閘未通過，未合成）</h3><div class="card"><table>
+      <tr><th>#</th><th>標題</th><th>重疊</th><th>LCS</th><th>重寫</th><th>原因</th></tr>
+      ${rej.map(c => `<tr><td>${esc(c.segment_id)}</td><td>${esc(c.title)}</td><td class="num">${((c.plagiarism_overlap || 0) * 100).toFixed(1)}%</td><td class="num">${esc(c.plagiarism_lcs)}</td><td class="num">${esc(c.rewrite_attempts || 0)}</td><td class="small muted">${esc(c.reject_reason || c.skip_reason || '與原稿重疊超過門檻，重寫後仍超標')}</td></tr>`).join('')}
+    </table></div>` : '';
+  }
+
+  loadVideos().then(() => {
+    const first = document.querySelector('#videos button');
+    if (first) loadVideo(first.dataset.vid);
+  });
+})();
+</script>
+</body>
+</html>

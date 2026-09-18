@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     openai_tts_model: str = "gpt-4o-mini-tts"
     video_width: int = 1080
     video_height: int = 1920
+    font: str | None = None  # path to a TTF/TTC with Traditional Chinese glyphs (auto-detected if unset)
 
     # guardrails
     max_budget_usd: float = 1.0
