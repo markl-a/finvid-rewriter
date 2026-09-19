@@ -217,7 +217,7 @@ def test_concurrent_run_guard(client, monkeypatch):
 
 
 def test_settings_api_reads_masked_and_writes_env(tmp_path, monkeypatch, client):
-    """The dashboard's 設定 panel: secrets never come back in full, writes merge into .env
+    """The dashboard's 設定 panel: stored values are shown (localhost only), writes merge into .env
     (placeholder comment lines become real assignments), unknown keys are refused."""
     from pipeline.ui import settings_api as sa
     env = tmp_path / ".env"
@@ -226,7 +226,7 @@ def test_settings_api_reads_masked_and_writes_env(tmp_path, monkeypatch, client)
     monkeypatch.setattr(sa, "ENV_EXAMPLE", tmp_path / "nope")
 
     d = client.get("/api/settings").json()
-    assert d["secrets"]["OPENAI_API_KEY"] == {"set": False, "hint": ""} and d["plain"]["FINVID_MAX_CLIPS"] == "3"
+    assert d["secrets"]["OPENAI_API_KEY"] == {"set": False, "hint": "", "value": ""} and d["plain"]["FINVID_MAX_CLIPS"] == "3"
 
     r = client.post("/api/settings", json={"values": {"OPENAI_API_KEY": "sk-test-1234567890", "HF_TOKEN": "hf_abcdefghijkl",
                                                        "FINVID_AI_VIDEO": "hf,pixazo", "FINVID_BROLL": "pexels"}})
@@ -237,8 +237,7 @@ def test_settings_api_reads_masked_and_writes_env(tmp_path, monkeypatch, client)
     assert "FINVID_AI_VIDEO=hf,pixazo" in text and "FINVID_MAX_CLIPS=3" in text
 
     d = client.get("/api/settings").json()
-    assert d["secrets"]["OPENAI_API_KEY"] == {"set": True, "hint": "…7890"}
-    assert "sk-test" not in client.get("/api/settings").text  # never echoed
+    assert d["secrets"]["OPENAI_API_KEY"] == {"set": True, "hint": "…7890", "value": "sk-test-1234567890"}  # shown: localhost-only panel
     assert d["plain"]["FINVID_AI_VIDEO"] == "hf,pixazo"
 
     assert client.post("/api/settings", json={"values": {"EVIL": "x"}}).status_code == 400

@@ -86,7 +86,7 @@
     <span class="tag">成本意識流程：先估再送、能不送就不送、送過不重送</span>
   </header>
 
-  <h2>設定 <span class="muted small">（寫進專案的 .env，下次啟動就記得；key 只存本機，不會顯示回來）</span></h2>
+  <h2>設定 <span class="muted small">（讀寫專案的 .env：已填的會顯示出來、可直接改，下次啟動就記得；key 只存本機）</span></h2>
   <div class="card">
     <details class="setup" id="setup" open>
       <summary>Key 與 provider <span id="setupSummary" class="muted small"></span></summary>
@@ -198,7 +198,8 @@
     let missing = [];
     for (const [k, v] of Object.entries(d.secrets)) {
       const inp = SF.querySelector(`[name="${k}"]`); if (!inp) continue;
-      inp.value = ''; inp.placeholder = v.set ? `已設定 ${v.hint}（留空 = 不變）` : inp.placeholder || '';
+      inp.value = v.value || '';  // .env 有的就顯示出來（本機服務）
+      inp.placeholder = v.set ? '' : (inp.dataset.ph || inp.placeholder || '');
       if (k === 'OPENAI_API_KEY' && !v.set) missing.push('OPENAI_API_KEY');
     }
     for (const [k, v] of Object.entries(d.plain)) { const inp = SF.querySelector(`[name="${k}"]`); if (inp && v) inp.value = v; }
@@ -208,7 +209,7 @@
   SF.addEventListener('submit', async (e) => {
     e.preventDefault();
     const values = {};
-    SF.querySelectorAll('input, select').forEach(inp => { if (inp.name && (inp.type !== 'password' || inp.value.trim())) values[inp.name] = inp.value.trim(); });
+    SF.querySelectorAll('input, select').forEach(inp => { if (inp.name) values[inp.name] = inp.value.trim(); });
     $('saveBtn').disabled = true; $('saveMsg').textContent = '儲存中…';
     try {
       const r = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ values }) });
@@ -232,6 +233,12 @@
     } catch (err) { out.innerHTML = `<span class="badge b-bad">失敗</span> ${esc(err)}`; }
     b.disabled = false;
   }));
+  SF.querySelectorAll('input[type=password]').forEach(inp => {
+    inp.dataset.ph = inp.placeholder;
+    const eye = document.createElement('button'); eye.type = 'button'; eye.textContent = '顯示'; eye.title = '顯示 / 隱藏';
+    eye.addEventListener('click', () => { const show = inp.type === 'password'; inp.type = show ? 'text' : 'password'; eye.textContent = show ? '隱藏' : '顯示'; });
+    inp.insertAdjacentElement('afterend', eye);
+  });
   loadSettings();
 
   $('runForm').addEventListener('submit', async (e) => {

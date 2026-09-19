@@ -18,7 +18,7 @@ Linux：  ./start-finvid.command
 
 - 填 `OPENAI_API_KEY`（必填）與各個免費／付費 provider 的 key，按「檢查」即時驗證（OpenAI 列模型、HF 顯示帳號、Pexels 顯示剩餘額度、ComfyUI 顯示 GPU 與模型檔是否齊全）
 - 選第 4 步要用的 AI 生成來源（`hf` / `hf,pixazo,comfy` / …）與真實素材（`pexels`）
-- 「儲存到 .env」——寫進專案的 `.env`，**下次啟動就記得**；key 只存本機，頁面只顯示尾 4 碼
+- 「儲存到 .env」——寫進專案的 `.env`，**下次啟動就記得**；`.env` 已有的 key 會直接顯示在欄位裡（預設遮蔽，按「顯示」看全文），可以改、可以清空；只在本機 127.0.0.1 服務
 
 設定好之後在「執行」貼網址按開始（先勾 dry-run 看估算）。需要 Python 3.11+ 已裝在系統上（Windows：`winget install Python.Python.3.12`，macOS：`brew install python@3.12`）；其他都由腳本處理。以下是手動版本，做的事一樣。
 

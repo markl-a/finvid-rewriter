@@ -1,8 +1,10 @@
 """Settings panel backend: read/write the project's .env from the local web UI, and probe the
 services behind each key so a first-time user can see green/red before spending anything.
 
-Keys are never sent back to the browser: GET returns `set: true` plus the last 4 characters.
-The server binds to 127.0.0.1 (see cli.serve), so this is a local convenience, not an admin API.
+GET returns the stored values (so the panel shows what is in .env and lets you edit it); this is
+only acceptable because the server binds to 127.0.0.1 (see cli.serve) - it is a local convenience
+for the person who owns the machine, not an admin API. Fields render as password inputs with a
+show/hide toggle.
 """
 from __future__ import annotations
 
@@ -75,9 +77,9 @@ def write_env(updates: dict[str, str], path: Path | None = None) -> None:
             os.environ[key] = val
 
 
-def _mask(v: str) -> dict:
-    v = v or ""
-    return {"set": bool(v.strip()), "hint": ("…" + v[-4:]) if len(v) >= 8 else ""}
+def _secret(v: str) -> dict:
+    v = (v or "").strip()
+    return {"set": bool(v), "hint": ("…" + v[-4:]) if len(v) >= 8 else "", "value": v}
 
 
 class SettingsUpdate(BaseModel):
@@ -89,7 +91,7 @@ def get_settings_view() -> dict:
     env = read_env()
     return {
         "env_path": str(ENV_PATH),
-        "secrets": {k: _mask(env.get(k, "")) for k in SECRETS},
+        "secrets": {k: _secret(env.get(k, "")) for k in SECRETS},
         "plain": {k: env.get(k, "") for k in PLAIN},
     }
 
