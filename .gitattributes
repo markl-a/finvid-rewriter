@@ -1,0 +1,9 @@
+# line endings that must survive a Windows checkout
+*.command text eol=lf
+*.sh      text eol=lf
+*.bat     text eol=crlf
+*.py      text
+*.json    text
+*.md      text
+*.mp4     binary
+*.png     binary
