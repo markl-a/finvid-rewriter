@@ -13,6 +13,7 @@ from .config import DATA_DIR, ConfigError, check_openai_key, get_settings
 from .context import AlreadyRunning, BudgetExceeded, RunContext, WorkdirLock, extract_video_id, run_stage
 from .manifest import STAGE_ORDER, Manifest
 from .pricing import ai_video_reference_cost
+from .render.aivideo.base import AIVideoError
 
 app = typer.Typer(add_completion=False, help="Cost-aware YouTube finance video -> short clips pipeline")
 console = Console()
@@ -93,6 +94,10 @@ def run(
     except AlreadyRunning as e:
         console.print(f"[bold yellow]DUPLICATE GUARD:[/] {e}")
         raise typer.Exit(code=4)
+    except AIVideoError as e:
+        console.print("[bold red]AI VIDEO:[/] ", end="")
+        console.print(str(e), markup=False, highlight=False)
+        raise typer.Exit(code=5)
     _print_costs(ctx.manifest, this_run_usd=ctx.spent_usd, dry_run=dry_run, ctx=ctx)
 
 

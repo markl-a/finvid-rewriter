@@ -114,12 +114,23 @@ python -m pytest -q           # 單元測試（不需要 key、不需要網路�
 
 ---
 
-### 第 4 步的 AI 生成畫面（可選，$0，需要 GPU）
+### 第 4 步的 AI 生成畫面（可選，$0）
 
-預設 `FINVID_AI_VIDEO=none`：影片是靜態卡 + 字幕 + 旁白，秒級完成、不需要 GPU。
-設 `FINVID_AI_VIDEO=comfy` 時，整支 clip 的背景都是 AI 生成的直式影片：每支生成 `FINVID_AI_SHOTS_PER_CLIP`（預設 2）段 5 秒鏡頭——第 1 段用第 3 步 Pass B 寫的 `ai_shot`（開場畫面描述），其餘用該段台詞的 `visual` 關鍵字組 prompt——每段做成正放+倒放的無縫迴圈鋪滿它負責的時間窗；重繪的圖表從第一句正文起以卡片疊在畫面中段，標題／字幕／出處疊最上層。用本機 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) + [LTX-Video 2B 蒸餾版](https://huggingface.co/Lightricks/LTX-Video)：**$0，不用任何 key**，代價是時間——demo 機器（AMD Radeon 8060S 內顯，32 GB）每段 79–121 秒，3 支 6 段約 9 分鐘。
+預設 `FINVID_AI_VIDEO=none`：影片是靜態卡 + 字幕 + 旁白，秒級完成、不需要 GPU 也不需要 key。
+
+| `FINVID_AI_VIDEO` | 跑在哪 | 費用 | 每段 5 秒鏡頭 | 需要什麼 |
+|---|---|---|---|---|
+| `hf` | Hugging Face ZeroGPU 上 Lightricks 官方的 LTX-Video Space | **$0** | ~25 秒 | 什麼都不用；匿名每天約 1–2 段，填免費帳號的 `HF_TOKEN` 額度較大 |
+| `comfy` | 你自己的 GPU（本機 ComfyUI） | $0 | 80–120 秒（Radeon 8060S 內顯） | 裝 ComfyUI + 11.5 GB 模型（下面） |
+| `hf,comfy` | 先雲端免費額度，用完自動換本機 | $0 | — | 兩者 |
+
+免費額度就是這一步的「預算」：額度用完會明確報錯（或依備援鏈換下一個），已生成的鏡頭都有快取，隔天再跑只補缺的。這跟 OpenAI 那邊的 `FINVID_MAX_BUDGET_USD` 是同一個思路，只是單位從美金變成 GPU 秒。
+
+不管哪個 provider，整支 clip 的背景都是 AI 生成的直式影片：每支生成 `FINVID_AI_SHOTS_PER_CLIP`（預設 2）段 5 秒鏡頭——第 1 段用第 3 步 Pass B 寫的 `ai_shot`（開場畫面描述），其餘用該段台詞的 `visual` 關鍵字組 prompt——每段做成正放+倒放的無縫迴圈鋪滿它負責的時間窗；重繪的圖表從第一句正文起以卡片疊在畫面中段，標題／字幕／出處疊最上層。兩個 provider 用的是同一個模型（[LTX-Video 2B 蒸餾版](https://huggingface.co/Lightricks/LTX-Video)）：`hf` 是 Lightricks 自己架在 ZeroGPU 的 demo，`comfy` 是本機 [ComfyUI](https://github.com/comfyanonymous/ComfyUI)——demo 機器（AMD Radeon 8060S 內顯，32 GB）每段 79–121 秒，3 支 6 段約 9 分鐘。
 
 每支只生成 2 段 5 秒而不是逐句生成 40 秒是刻意的：GPU 時間隨段數線性增加（雲端則是 $0.3–5/支），迴圈後觀感差異不大；數據本身用重繪的圖表比 AI 畫面更可信，所以圖表是疊在畫面上、不是被畫面取代。
+
+**`hf` 什麼都不用裝**：`FINVID_AI_VIDEO=hf finvid run` 即可。下面是 `comfy` 的安裝：
 
 ```bash
 # 一次性安裝（NVIDIA 照 ComfyUI 官方 README；AMD Windows 照下面，來自 AMD 的 ROCm 部落格）
@@ -138,7 +149,7 @@ D:\tools\comfyui-venv\Scripts\python D:\tools\ComfyUI\main.py --listen 127.0.0.1
 FINVID_AI_VIDEO=comfy finvid run          # PowerShell: $env:FINVID_AI_VIDEO="comfy"; finvid run
 ```
 
-流程在 `pipeline/render/aivideo/`：workflow 是 ComfyUI API 格式的 JSON 模板（`workflows/ltxv_t2v.json`，可換成任何自己的 workflow，`FINVID_COMFY_WORKFLOW=` 指向即可），程式填入 prompt / 尺寸 / 幀數 / seed 後 `POST /prompt`，輪詢 `/history`，抓回檔案轉 h264。ComfyUI 沒開時會明確報錯，不會默默退回靜態卡。帳本記 `comfyui / gpu_second` 單價 $0，dry-run 也會估 GPU 秒數，所以「$0 但每支 90 秒」和「$0.27 但 20 秒」（MiniMax）可以放在同一張表比。
+流程在 `pipeline/render/aivideo/`：`hf_space.py` 用 `gradio_client` 呼叫 Space 的 `/text_to_video`；`comfy.py` 的 workflow 是 ComfyUI API 格式的 JSON 模板（`workflows/ltxv_t2v.json`，可換成任何自己的 workflow，`FINVID_COMFY_WORKFLOW=` 指向即可），程式填入 prompt / 尺寸 / 幀數 / seed 後 `POST /prompt`，輪詢 `/history`，抓回檔案轉 h264。ComfyUI 沒開時會明確報錯，不會默默退回靜態卡。帳本記 `comfyui / gpu_second` 單價 $0，dry-run 也會估 GPU 秒數，所以「$0 但每支 90 秒」和「$0.27 但 20 秒」（MiniMax）可以放在同一張表比。
 
 ## 2. 成本意識：這個流程在哪裡省錢
 
@@ -189,7 +200,7 @@ brief 點名的三件事，對應的機制：
 | 寫腳本 | `gpt-5`（reasoning low） | 改寫品質直接決定合法性與可看性，值得花；只對篩過的段落用 | `gpt-4.1-mini` 便宜 5 倍，品質可接受 |
 | TTS | edge-tts `zh-TW-HsiaoChenNeural` | 免費、台灣腔、自然度夠 demo | OpenAI `gpt-4o-mini-tts` 約 $0.01/支 |
 | 圖表 | matplotlib | 題目要求可程式化，CJK 字型可控 | Plotly（要 kaleido 輸出圖片，依賴較重） |
-| AI 鏡頭 | 本機 ComfyUI + LTX-Video 2B distilled | $0、不用 key、開源權重；8 步蒸餾版在內顯上 90 秒/段可接受；ComfyUI 的 HTTP API 讓 workflow 可以整段換掉 | 雲端：MiniMax Hailuo（$0.08–0.27/段）、Kling（$0.18–0.42/段）、Veo（無免費 API）；免費雲端：Pixazo LTX、HF ZeroGPU（3.5 GPU 分鐘/天） |
+| AI 鏡頭 | HF ZeroGPU Space（免費雲端）＋ 本機 ComfyUI，同一個 LTX-Video 2B distilled 模型，可串成備援鏈 | $0、開源權重、不用信用卡；雲端 25 秒/段但有每日額度，本機 90 秒/段但無上限；ComfyUI 的 HTTP API 讓 workflow 可以整段換掉 | 付費雲端：MiniMax Hailuo（$0.08–0.27/段）、Kling（$0.18–0.42/段）、Veo（無免費 API）；其他免費：Pixazo LTX（preview 期） |
 | 合成 | PIL + ffmpeg | 零依賴問題，Windows/macOS 都穩；字幕用 PNG overlay 避開 ffmpeg subtitles filter 在 Windows 的路徑地雷 | moviepy（慢、依賴多） |
 | UI | FastAPI + 單一 HTML | 不用 build、跨平台、不需部署；桌面 app 會被 Gatekeeper/防毒擋，雲端網站會曝露 key | Streamlit |
 
@@ -209,7 +220,7 @@ pipeline/
   numbers.py        數字溯源：中文/阿拉伯數字解析，圖表點必須在逐字稿出現過
   stages/           s1_download s2_transcribe s3_script s4_render
   render/           tts chart compose fonts
-  render/aivideo/   AI 開場鏡頭 provider（comfy.py + workflows/*.json）
+  render/aivideo/   AI 鏡頭 provider：base.py（快取/帳本）、hf_space.py、comfy.py + workflows/*.json、備援鏈
   ui/               server.py + static/index.html
 tests/              不打 API、不需網路的單元測試
 docs/               ANALYSIS.md（設計分析）COST.md（成本假設與決策）

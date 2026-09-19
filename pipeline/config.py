@@ -22,6 +22,7 @@ class Settings(BaseSettings):
 
     # keys (no prefix)
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
+    hf_token: str | None = Field(default=None, validation_alias="HF_TOKEN")  # optional: bigger ZeroGPU quota
 
     # step 2
     stt_provider: str = "openai"  # openai | local
@@ -45,12 +46,14 @@ class Settings(BaseSettings):
     font: str | None = None  # path to a TTF/TTC with Traditional Chinese glyphs (auto-detected if unset)
 
     # step 4: AI-generated opening shot per clip. none = static card only (default, $0, seconds)
-    ai_video: str = "none"  # none | comfy
+    ai_video: str = "none"  # none | comfy (local ComfyUI) | hf (Hugging Face ZeroGPU Space, free)
     ai_shot_seconds: float = 5.0
     ai_shots_per_clip: int = 2  # 1 = one shot ping-pong looped under the whole clip; 2+ = more variety, linear GPU cost
     ai_shot_width: int = 576   # 9:16, multiples of 32 for LTX
     ai_shot_height: int = 1024
     ai_shot_fps: int = 24
+    hf_space: str = "Lightricks/ltx-video-distilled"  # any Gradio Space exposing /text_to_video like the official one
+    hf_est_seconds: float = 30  # wall seconds per shot for dry-run (measured 25 s)
     comfy_url: str = "http://127.0.0.1:8188"
     comfy_workflow: str | None = None  # API-format workflow JSON; default: bundled ltxv_t2v.json
     comfy_checkpoint: str = "ltxv-2b-0.9.8-distilled.safetensors"

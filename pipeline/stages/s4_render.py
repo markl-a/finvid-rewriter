@@ -45,7 +45,9 @@ def stage_config(ctx: RunContext) -> dict[str, Any]:
         "ai_video": s.ai_video,
         "ai_shot": {"seconds": s.ai_shot_seconds, "w": s.ai_shot_width, "h": s.ai_shot_height,
                     "per_clip": s.ai_shots_per_clip,
-                    "model": s.comfy_checkpoint, "steps": s.comfy_steps} if s.ai_video != "none" else None,
+                    "hf_space": s.hf_space if "hf" in s.ai_video else None,
+                    "comfy": {"model": s.comfy_checkpoint, "steps": s.comfy_steps} if "comfy" in s.ai_video else None,
+                    } if s.ai_video != "none" else None,
         "s3_config_hash": s3.get("config_hash"),
     }
 
