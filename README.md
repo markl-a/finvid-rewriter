@@ -93,6 +93,10 @@ manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 
 三支腳本的反抄襲檢查：6 字 n-gram 重疊率都是 0%，最長共同子字串 3–5 字（都是數字或專有名詞）；數字溯源閘：10 個圖表點與口白中的每個數字都能在逐字稿找到（`numbers_unverified` 全空）。
 
+### 成品展示
+
+[docs/showcase/](docs/showcase/README.md)：三個免費 AI provider 用同一個 prompt 生成的鏡頭並排比較（影片 + 影格），以及完整成品的影格帶。
+
 ### 本機 web 介面（把成本決策攤開來看）
 
 ```bash
