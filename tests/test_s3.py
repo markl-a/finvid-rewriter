@@ -481,6 +481,7 @@ def test_numbers_parses_chinese_and_arabic_forms():
     assert {40} <= numbers_in("四十年") and {40} <= numbers_in("百分之四十") and {40} <= numbers_in("四成")
     assert 23800000 in numbers_in("兩千三百八十萬") and 23800000 in numbers_in("2,380萬")
     assert 3.5 in numbers_in("三點五")
+    assert 90 in numbers_in("出現九字頭的成交價")
     # STT glues neighbours together: two numbers, not one
     assert [v for _, vals in number_tokens("三萬二三萬四") for v in vals] == [32000, 34000]
 
@@ -504,8 +505,9 @@ def test_verify_numbers_drops_unstated_chart_point_and_flags_text():
     s3_script.verify_numbers(clip, seg, src, logs.append)
     assert [p.label for p in clip.chart.series[0].points] == ["台北", "新北"]
     assert "chart:桃園=8.5倍" in clip.numbers_unverified
-    # 1000萬 / 兩百萬 (data_points) / 三十 are traceable; 8.5 in the spoken text is only flagged
-    assert [t for t in clip.numbers_unverified if t.startswith("text:")] == ["text:8.5"]
+    # 1000萬 / 三十 are in the transcript; 兩百萬 is only in Pass A's data_points, which do not count
+    # as evidence (same model); 8.5 is nowhere. Spoken numbers are flagged, not removed.
+    assert [t for t in clip.numbers_unverified if t.startswith("text:")] == ["text:兩百萬", "text:8.5"]
     assert any("dropped" in l for l in logs)
 
 
@@ -531,3 +533,11 @@ def test_demo_clips_pass_number_gate():
         for ser in clip["chart"]["series"]:
             for p in ser["points"]:
                 assert value_stated(p["value"], p["unit"], src), (clip["segment_id"], p)
+
+
+def test_numbers_range_shares_unit_and_no_glued_trailing_digit():
+    from pipeline.numbers import number_tokens
+    toks = dict(number_tokens("豪宅70到80萬/坪"))
+    assert 700000 in toks["70"]  # bare number before 到 takes the unit of the next one
+    toks = dict(number_tokens("5800億2025縮到4100多億"))
+    assert set(toks) == {"5800億", "2025", "4100"}  # no 「5800億2」 / 「025」 split, no lone 「億」

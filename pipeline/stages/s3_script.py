@@ -636,15 +636,11 @@ def _call_pass_b(ctx: RunContext, seg: TopicSegment, system: str, user: str, att
 def verify_numbers(clip: ScriptClip, seg: TopicSegment, source_numbers: set[float], log) -> None:
     """$0 provenance gate. The prompt asks the model to use only figures from the transcript;
     this checks it. Chart values are the legal risk (they get drawn as "data"), so any chart point
-    not stated in the transcript or in Pass A's data_points is dropped, and a chart left with fewer
-    than two points is dropped whole. Spoken numbers are only flagged (numbers_unverified) —
+    not stated in the transcript is dropped, and a chart left with fewer than two points is dropped
+    whole. Only the transcript counts as evidence - Pass A's data_points come from the same model,
+    so they cannot vouch for Pass B. Spoken numbers are only flagged (numbers_unverified) -
     a paraphrase like 「差了四千」 is legitimate arithmetic, not fabrication."""
-    src = set(source_numbers)
-    for dp in seg.data_points:
-        src.add(dp.value)
-        scale = numbers.UNIT_SCALE.get(dp.unit[:1]) if dp.unit else None
-        if scale:
-            src.add(dp.value * scale)
+    src = source_numbers
     if clip.chart:
         kept_series = []
         for ser in clip.chart.series:

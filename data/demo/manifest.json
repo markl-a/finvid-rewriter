@@ -2,7 +2,7 @@
   "video_id": "KjAI9r8tnOs",
   "url": "https://www.youtube.com/watch?v=KjAI9r8tnOs",
   "created": "2026-09-18T23:44:48",
-  "updated": "2026-09-19T00:33:43",
+  "updated": "2026-09-19T08:05:21",
   "stages": {
     "s1_download": {
       "config_hash": "3756799fdb581f62",
@@ -70,10 +70,10 @@
       "finished_at": "2026-09-19T00:14:37"
     },
     "s3_script": {
-      "config_hash": "fa0446f0b93f06a9",
+      "config_hash": "f7a5dec86005f84a",
       "config": {
         "video_id": "KjAI9r8tnOs",
-        "prompt_version": 6,
+        "prompt_version": 7,
         "llm_cheap_model": "gpt-5-mini",
         "llm_strong_model": "gpt-5",
         "hook_threshold": 3,
@@ -94,7 +94,8 @@
         "clips_accepted": 3,
         "clips_rejected": 0,
         "clips_unparsable": 0,
-        "pass_b_skipped_saved_usd_est": 0.0525
+        "chart_points_dropped": 0,
+        "pass_b_skipped_saved_usd_est": 0.0875
       },
       "costs": [
         {
@@ -102,9 +103,9 @@
           "provider": "openai",
           "model": "gpt-5-mini",
           "unit": "input_tokens",
-          "quantity": 4354.0,
+          "quantity": 4373.0,
           "unit_price_usd": 2.5e-07,
-          "usd": 0.001089,
+          "usd": 0.001093,
           "estimated": false,
           "note": "pass A"
         },
@@ -113,9 +114,9 @@
           "provider": "openai",
           "model": "gpt-5-mini",
           "unit": "output_tokens",
-          "quantity": 3271.0,
+          "quantity": 2264.0,
           "unit_price_usd": 2e-06,
-          "usd": 0.006542,
+          "usd": 0.004528,
           "estimated": false,
           "note": "pass A"
         },
@@ -124,31 +125,9 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "input_tokens",
-          "quantity": 1286.0,
+          "quantity": 1477.0,
           "unit_price_usd": 1.25e-06,
-          "usd": 0.001607,
-          "estimated": false,
-          "note": "pass B seg 4"
-        },
-        {
-          "stage": "s3_script",
-          "provider": "openai",
-          "model": "gpt-5",
-          "unit": "output_tokens",
-          "quantity": 1534.0,
-          "unit_price_usd": 1e-05,
-          "usd": 0.01534,
-          "estimated": false,
-          "note": "pass B seg 4"
-        },
-        {
-          "stage": "s3_script",
-          "provider": "openai",
-          "model": "gpt-5",
-          "unit": "input_tokens",
-          "quantity": 1204.0,
-          "unit_price_usd": 1.25e-06,
-          "usd": 0.001505,
+          "usd": 0.001846,
           "estimated": false,
           "note": "pass B seg 5"
         },
@@ -157,9 +136,9 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "output_tokens",
-          "quantity": 1753.0,
+          "quantity": 1615.0,
           "unit_price_usd": 1e-05,
-          "usd": 0.01753,
+          "usd": 0.01615,
           "estimated": false,
           "note": "pass B seg 5"
         },
@@ -168,9 +147,31 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "input_tokens",
-          "quantity": 1210.0,
+          "quantity": 1422.0,
           "unit_price_usd": 1.25e-06,
-          "usd": 0.001512,
+          "usd": 0.001778,
+          "estimated": false,
+          "note": "pass B seg 7"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "output_tokens",
+          "quantity": 1603.0,
+          "unit_price_usd": 1e-05,
+          "usd": 0.01603,
+          "estimated": false,
+          "note": "pass B seg 7"
+        },
+        {
+          "stage": "s3_script",
+          "provider": "openai",
+          "model": "gpt-5",
+          "unit": "input_tokens",
+          "quantity": 1419.0,
+          "unit_price_usd": 1.25e-06,
+          "usd": 0.001774,
           "estimated": false,
           "note": "pass B seg 8"
         },
@@ -179,17 +180,17 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "output_tokens",
-          "quantity": 1578.0,
+          "quantity": 1754.0,
           "unit_price_usd": 1e-05,
-          "usd": 0.01578,
+          "usd": 0.01754,
           "estimated": false,
           "note": "pass B seg 8"
         }
       ],
-      "finished_at": "2026-09-19T00:31:12"
+      "finished_at": "2026-09-19T08:04:53"
     },
     "s4_render": {
-      "config_hash": "b2fb8412d1ac84f1",
+      "config_hash": "c381c30229966dc0",
       "config": {
         "video_id": "KjAI9r8tnOs",
         "render_version": 2,
@@ -198,19 +199,19 @@
         "width": 1080,
         "height": 1920,
         "max_clips": 3,
-        "s3_config_hash": "fa0446f0b93f06a9"
+        "s3_config_hash": "f7a5dec86005f84a"
       },
       "outputs": {
         "render": "04_render.json",
-        "clip_4": "04_clips/clip_04.mp4",
         "clip_5": "04_clips/clip_05.mp4",
+        "clip_7": "04_clips/clip_07.mp4",
         "clip_8": "04_clips/clip_08.mp4"
       },
       "meta": {
         "clips_rendered": 3,
-        "total_seconds": 118.0,
+        "total_seconds": 115.5,
         "tts_usd": 0.0,
-        "reference_ai_video_usd": 29.5
+        "reference_ai_video_usd": 28.875
       },
       "costs": [
         {
@@ -218,42 +219,20 @@
           "provider": "edge",
           "model": "edge-tts",
           "unit": "characters",
-          "quantity": 120.0,
+          "quantity": 138.0,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "clip 4: 120 chars"
+          "note": "clip 5: 138 chars"
         },
         {
           "stage": "s4_render",
           "provider": "reference",
           "model": "ai-video-api",
           "unit": "second",
-          "quantity": 35.9,
+          "quantity": 39.0,
           "unit_price_usd": 0.25,
-          "usd": 8.975,
-          "estimated": true,
-          "note": "clip 4"
-        },
-        {
-          "stage": "s4_render",
-          "provider": "edge",
-          "model": "edge-tts",
-          "unit": "characters",
-          "quantity": 151.0,
-          "unit_price_usd": 0.0,
-          "usd": 0.0,
-          "estimated": false,
-          "note": "clip 5: 151 chars"
-        },
-        {
-          "stage": "s4_render",
-          "provider": "reference",
-          "model": "ai-video-api",
-          "unit": "second",
-          "quantity": 42.1,
-          "unit_price_usd": 0.25,
-          "usd": 10.525,
+          "usd": 9.75,
           "estimated": true,
           "note": "clip 5"
         },
@@ -262,25 +241,47 @@
           "provider": "edge",
           "model": "edge-tts",
           "unit": "characters",
-          "quantity": 135.0,
+          "quantity": 130.0,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "clip 8: 135 chars"
+          "note": "clip 7: 130 chars"
         },
         {
           "stage": "s4_render",
           "provider": "reference",
           "model": "ai-video-api",
           "unit": "second",
-          "quantity": 40.0,
+          "quantity": 40.2,
           "unit_price_usd": 0.25,
-          "usd": 10.0,
+          "usd": 10.05,
+          "estimated": true,
+          "note": "clip 7"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "edge",
+          "model": "edge-tts",
+          "unit": "characters",
+          "quantity": 114.0,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "clip 8: 114 chars"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "reference",
+          "model": "ai-video-api",
+          "unit": "second",
+          "quantity": 36.3,
+          "unit_price_usd": 0.25,
+          "usd": 9.075,
           "estimated": true,
           "note": "clip 8"
         }
       ],
-      "finished_at": "2026-09-19T00:33:43"
+      "finished_at": "2026-09-19T08:05:21"
     }
   },
   "runs": [
@@ -375,6 +376,20 @@
         "s3_script"
       ],
       "usd": 0.0
+    },
+    {
+      "started": 1789776212.9095924,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s3_script",
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe"
+      ],
+      "usd": 0.060739
     }
   ]
 }

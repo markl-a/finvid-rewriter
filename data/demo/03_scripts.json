@@ -5,32 +5,32 @@
     {
       "id": 1,
       "start": 0.0,
-      "end": 129.0,
-      "topic": "臺北購屋門檻與貸款負擔",
-      "summary": "在臺北總價兩千萬以下多數只能買中古屋，貸款寬限期前後月付落差大，購屋選擇有限。",
+      "end": 38.0,
+      "topic": "新青安與購屋門檻",
+      "summary": "新青安上路讓部分租屋族改買房，但符合兩千萬以下的選擇有限，寬限期前後月付差距大。",
       "key_points": [
-        "兩千萬總價在臺北只能鎖定中古屋",
-        "前五年寬限期月付較低，過後負擔倍增",
-        "購屋要在地點與舒適度間抉擇"
+        "新青安提高購屋誘因但可選物件少",
+        "預算兩千萬以下多只能選中古屋",
+        "寬限期前後月付負擔差距大"
       ],
       "data_points": [
         {
-          "label": "購屋總價上限案例",
-          "value": 2000.0,
-          "unit": "萬"
+          "label": "購屋總價上限討論範例",
+          "value": 20000000.0,
+          "unit": "元"
         },
         {
-          "label": "貸款金額例示",
-          "value": 1000.0,
-          "unit": "萬"
+          "label": "示例貸款金額",
+          "value": 10000000.0,
+          "unit": "元"
         },
         {
-          "label": "寬限期內月付金額（示例）",
+          "label": "寬限期前每月還款",
           "value": 15000.0,
           "unit": "元"
         },
         {
-          "label": "寬限期後月付金額（示例）",
+          "label": "寬限期後每月還款",
           "value": 30000.0,
           "unit": "元"
         }
@@ -38,105 +38,128 @@
       "has_chart_data": true,
       "hook_score": 4,
       "selected": false,
-      "skip_reason": "duplicate of segment 4 (same figures)"
+      "skip_reason": "duplicate of segment 5 (same figures)"
     },
     {
       "id": 2,
-      "start": 129.0,
-      "end": 213.0,
-      "topic": "中古屋年限與屋況取捨",
-      "summary": "預算兩千萬以下常看到四十年以上老屋，格局與結構可能與期望有落差，補助非首要考量。",
+      "start": 38.0,
+      "end": 91.0,
+      "topic": "租屋轉買房的生活考量",
+      "summary": "夫妻因交通與工作選市中心租屋多年，想買兩房但面臨高房價與選擇少的現實。",
       "key_points": [
-        "低總價多為四十年或以上物件",
-        "老屋在結構與格局上常需妥協",
-        "新青安補助不是所有人的首選"
+        "在市中心租屋方便但屋況與空間有限",
+        "希望至少買兩房以滿足生活需求",
+        "看房頻繁但因房價高選擇受限"
       ],
       "data_points": [
         {
-          "label": "中古屋常見屋齡",
-          "value": 40.0,
-          "unit": "年"
-        }
-      ],
-      "has_chart_data": false,
-      "hook_score": 2,
-      "selected": false,
-      "skip_reason": "hook_score 2 < threshold 3"
-    },
-    {
-      "id": 3,
-      "start": 213.0,
-      "end": 355.0,
-      "topic": "購屋者的個人規劃與壓力",
-      "summary": "年輕族群或自由工作者在貸款簽約前後感受到長期還款壓力，但也看重自有空間與生活滿足。",
-      "key_points": [
-        "簽約後才體會長期貸款壓力（例如40年）",
-        "部分人利用前五年寬限期準備創業或調整收入",
-        "自住帶來的生活滿足感仍是重要動機"
-      ],
-      "data_points": [
-        {
-          "label": "寬限期長度",
-          "value": 5.0,
-          "unit": "年"
-        },
-        {
-          "label": "房貸常見年限",
-          "value": 40.0,
+          "label": "居住年限範例",
+          "value": 7.0,
           "unit": "年"
         }
       ],
       "has_chart_data": false,
       "hook_score": 3,
       "selected": false,
-      "skip_reason": "duplicate of segment 4 (same figures)"
+      "skip_reason": "over max_clips budget"
     },
     {
-      "id": 4,
-      "start": 355.0,
-      "end": 475.0,
-      "topic": "新青安方案的月付與年限比較",
-      "summary": "以一千萬貸款為例，前期每月約1.5萬，寬限期後若35年或40年攤還，月付分別接近3.6萬與3.2萬，拉長年限雖降月付但增加總利息。",
+      "id": 3,
+      "start": 91.0,
+      "end": 183.0,
+      "topic": "中古屋年限與空間折衷",
+      "summary": "兩千萬預算在臺北多為四十年以上中古屋，格局與結構難達期待，新青安不是唯一考量。",
       "key_points": [
-        "前五年寬限期月付較低（約1.5萬）",
-        "35年本息均攤月付約3.6萬，40年約3.2萬",
-        "延長年限只是延後還本，總利息更高"
+        "兩千萬以下多為四十年左右房屋",
+        "老屋在結構與格局上常與期望有差距",
+        "申請補助不一定是首要決定因素"
       ],
       "data_points": [
         {
-          "label": "貸款金額案例",
-          "value": 1000.0,
-          "unit": "萬"
+          "label": "常見屋齡",
+          "value": 40.0,
+          "unit": "年"
         },
         {
-          "label": "寬限期內月付",
-          "value": 15000.0,
+          "label": "購屋總價範例",
+          "value": 20000000.0,
+          "unit": "元"
+        }
+      ],
+      "has_chart_data": true,
+      "hook_score": 3,
+      "selected": false,
+      "skip_reason": "over max_clips budget"
+    },
+    {
+      "id": 4,
+      "start": 183.0,
+      "end": 364.0,
+      "topic": "個人理財與還款規劃",
+      "summary": "年輕族為控制支出把購屋含裝潢控制在兩千萬內，利用寬限期緩衝創業或收入不穩的壓力。",
+      "key_points": [
+        "把購屋與裝潢合計控制在兩千萬以內",
+        "寬限期可作為創業或調整期",
+        "簽約後長期貸款年限帶來心理壓力"
+      ],
+      "data_points": [
+        {
+          "label": "購屋含裝潢上限",
+          "value": 20000000.0,
           "unit": "元"
         },
         {
-          "label": "35年本息均攤月付（示例）",
-          "value": 36000.0,
-          "unit": "元"
+          "label": "預計房貸佔薪資比例上限（目標）",
+          "value": 33.0,
+          "unit": "%"
         },
         {
-          "label": "40年本息均攤月付（示例）",
-          "value": 32000.0,
-          "unit": "元"
-        },
+          "label": "貸款年限舉例",
+          "value": 40.0,
+          "unit": "年"
+        }
+      ],
+      "has_chart_data": true,
+      "hook_score": 3,
+      "selected": false,
+      "skip_reason": "over max_clips budget"
+    },
+    {
+      "id": 5,
+      "start": 364.0,
+      "end": 556.0,
+      "topic": "新青安政策細節與試算",
+      "summary": "新青安採5年寬限、最高40年期貸款，示範一千萬貸款寬限期與本息期的月付差異及延長年限的利弊。",
+      "key_points": [
+        "新青安設5年寬限期並拉長到40年期",
+        "寬限期降低短期現金流壓力但延長總利息",
+        "年限越長短期月付越輕但未來還本壓力仍在"
+      ],
+      "data_points": [
         {
-          "label": "寬限期長度",
+          "label": "寬限期年限",
           "value": 5.0,
           "unit": "年"
         },
         {
-          "label": "示例攤還年限A",
-          "value": 35.0,
-          "unit": "年"
+          "label": "示例貸款金額",
+          "value": 10000000.0,
+          "unit": "元"
         },
         {
-          "label": "示例攤還年限B",
-          "value": 40.0,
-          "unit": "年"
+          "label": "寬限期每月還款（示例）",
+          "value": 15000.0,
+          "unit": "元"
+        },
+        {
+          "label": "35年本息每月還款（示例）",
+          "value": 36000.0,
+          "unit": "元"
+        },
+        {
+          "label": "40年本息每月還款（示例）",
+          "value": 32000.0,
+          "unit": "元"
         }
       ],
       "has_chart_data": true,
@@ -145,125 +168,97 @@
       "skip_reason": ""
     },
     {
-      "id": 5,
-      "start": 475.0,
-      "end": 595.0,
-      "topic": "新青安的制度性疑慮",
-      "summary": "新青安降低購屋門檻但可能推高房價、拉長還款期與增加整體利息，且補貼若退場恐使負擔再升。",
+      "id": 6,
+      "start": 556.0,
+      "end": 686.0,
+      "topic": "政策風險與個人負擔率",
+      "summary": "若補貼退場或利率上升，房貸負擔將增；個人建議房貸負擔不超過薪資四成，北市負擔最重。",
       "key_points": [
-        "政策短期拉抬買氣與價格，長期效益存疑",
-        "補貼退場或利率回升會提高負擔",
-        "理想房貸佔薪比約在40%以內比較適當"
+        "補貼若退場利率回升會增加負擔",
+        "房貸佔薪資40%為較剛好上限建議",
+        "新青安可能推高房價，實質助益多給原本就買得起的人"
       ],
       "data_points": [
         {
-          "label": "建議房貸佔薪上限",
+          "label": "建議房貸佔薪資上限",
           "value": 40.0,
           "unit": "%"
         },
         {
-          "label": "受訪人當前房貸佔薪比（示例）",
-          "value": 30.0,
+          "label": "北市房貸負擔率（後文提及）",
+          "value": 60.0,
           "unit": "%"
         }
       ],
       "has_chart_data": true,
       "hook_score": 4,
+      "selected": false,
+      "skip_reason": "duplicate of segment 8 (same figures)"
+    },
+    {
+      "id": 7,
+      "start": 686.0,
+      "end": 820.0,
+      "topic": "中南部房市漲勢與單價",
+      "summary": "以安平與臺中為例，新案單坪價從30–35萬起跳，已突破40萬，部分豪宅成交甚至到7、80萬。",
+      "key_points": [
+        "安平新案單坪價從30–35萬到破40萬",
+        "五年寬限期拉抬買氣造成搶購現象",
+        "兩房小宅快速被市場掃空符合年輕人需求"
+      ],
+      "data_points": [
+        {
+          "label": "安平新成屋單坪價區間下限",
+          "value": 300000.0,
+          "unit": "元/坪"
+        },
+        {
+          "label": "安平新成屋單坪價區間上限",
+          "value": 350000.0,
+          "unit": "元/坪"
+        },
+        {
+          "label": "安平突破價格",
+          "value": 400000.0,
+          "unit": "元/坪"
+        },
+        {
+          "label": "臺中豪宅單坪價範圍",
+          "value": 700000.0,
+          "unit": "元/坪"
+        },
+        {
+          "label": "臺中高價單坪（上限示例）",
+          "value": 900000.0,
+          "unit": "元/坪"
+        }
+      ],
+      "has_chart_data": true,
+      "hook_score": 5,
       "selected": true,
       "skip_reason": ""
     },
     {
-      "id": 6,
-      "start": 595.0,
-      "end": 718.0,
-      "topic": "臺南安平區與個案價格",
-      "summary": "安平區新興案單價逐步上升，個案開價2,380萬，過去單坪30–35萬如今已突破40萬。",
-      "key_points": [
-        "個案目前開價報2,380萬",
-        "安平新案單坪從30–35萬上升至突破40萬",
-        "買氣曾因寬限期出現同案多次喊價與多方競價"
-      ],
-      "data_points": [
-        {
-          "label": "個案開價",
-          "value": 2380.0,
-          "unit": "萬"
-        },
-        {
-          "label": "安平區過去單坪價位下限",
-          "value": 30.0,
-          "unit": "萬/坪"
-        },
-        {
-          "label": "安平區過去單坪價位上限",
-          "value": 35.0,
-          "unit": "萬/坪"
-        },
-        {
-          "label": "安平區近期單坪突破",
-          "value": 40.0,
-          "unit": "萬/坪"
-        },
-        {
-          "label": "曾有競價數量（最高）",
-          "value": 5.0,
-          "unit": "次"
-        }
-      ],
-      "has_chart_data": true,
-      "hook_score": 4,
-      "selected": false,
-      "skip_reason": "over max_clips budget"
-    },
-    {
-      "id": 7,
-      "start": 718.0,
-      "end": 868.0,
-      "topic": "臺中房價飆升與高價盤整區",
-      "summary": "臺中蛋黃區包含七期等地單坪可達70–90萬，重劃區與大型公共建設帶動區域溢價。",
-      "key_points": [
-        "蛋黃區高樓層成交出現九字頭單價",
-        "重劃區有道路、綠地等公共建設支撐增值",
-        "符合年輕人需求的低總價小宅產品供不應求"
-      ],
-      "data_points": [
-        {
-          "label": "蛋黃區高價單坪下限",
-          "value": 70.0,
-          "unit": "萬/坪"
-        },
-        {
-          "label": "蛋黃區高價單坪上限",
-          "value": 90.0,
-          "unit": "萬/坪"
-        }
-      ],
-      "has_chart_data": true,
-      "hook_score": 4,
-      "selected": false,
-      "skip_reason": "over max_clips budget"
-    },
-    {
       "id": 8,
-      "start": 868.0,
+      "start": 820.0,
       "end": 939.0,
-      "topic": "市場回檔與房貸負擔率",
-      "summary": "2024–2025年案量從近5800多億降至約4100多億，近年價格年跌幅約3–5%，房貸負擔率北部高達60%，三都普遍超過40%，臺中接近45%。",
+      "topic": "房市回檔與負擔率台北化",
+      "summary": "2024下半年房市回落，臺中案量從近5800億降到4100多億，且中南部房貸負擔率快速追近臺北化。",
       "key_points": [
-        "市場量縮導致價格修正3–5%年跌幅",
-        "北市房貸負擔率約為6成，全國最高",
-        "中南部與三都房貸負擔率逐步攀升，臺中接近45%"
+        "市場量縮導致價格調整，近年每年跌幅約3–5%",
+        "臺中案量從2024到2025大減，交易量影響價格",
+        "中南部房貸負擔率已普遍超過四成，逐漸接近臺北"
       ],
       "data_points": [
         {
           "label": "2024年臺中總案量",
-          "value": 5800.0,
-          "unit": "億"
+          "value": 580000000000.0,
+          "unit": "元"
         },
         {
-          "label": "2025年臺中總案量（降至）",
-          "value": 4100.0,
-          "unit": "億"
+          "label": "2025年臺中總案量",
+          "value": 410000000000.0,
+          "unit": "元"
         },
         {
           "label": "近年年均價格跌幅範圍",
@@ -271,7 +266,7 @@
           "unit": "%"
         },
         {
-          "label": "近年年均價格跌幅範圍上限",
+          "label": "近年年均價格跌幅上限",
           "value": 5.0,
           "unit": "%"
         },
@@ -286,7 +281,7 @@
           "unit": "%"
         },
         {
-          "label": "臺中房貸負擔率接近",
+          "label": "臺中接近房貸負擔率（示例）",
           "value": 45.0,
           "unit": "%"
         }
@@ -299,63 +294,63 @@
   ],
   "clips": [
     {
-      "segment_id": 4,
-      "title": "新青安月付差多大？",
-      "hook": "40年房貸真的更輕鬆嗎？",
+      "segment_id": 5,
+      "title": "新青安月付這樣差",
+      "hook": "一招看懂新青安真相",
       "lines": [
         {
           "text": "根據TVBS《健康2.0》報導指出",
           "emphasis": false
         },
         {
-          "text": "以貸1000萬試算，前5年月付1.5萬",
+          "text": "新青安設5年寬限、最長40年期。",
           "emphasis": false
         },
         {
-          "text": "寬限期後，35年攤還約3.6萬",
+          "text": "示範貸1000萬，前5年月付約1.5萬。",
           "emphasis": false
         },
         {
-          "text": "拉到40年，月付約3.2萬",
+          "text": "寬限後改35年本息，月付約3.6萬。",
           "emphasis": false
         },
         {
-          "text": "月付是降了，但時間更長",
+          "text": "若拉到40年，本息月付約3.2萬。",
           "emphasis": false
         },
         {
-          "text": "只是延後還本，利息變高",
+          "text": "年限越長，眼前比較輕鬆。",
           "emphasis": false
         },
         {
-          "text": "別只看月付，總成本要算清",
+          "text": "但總利息會增加，還本只是延後。",
           "emphasis": false
         },
         {
-          "text": "買前先評估你的現金流",
+          "text": "寬限到期才是關卡，要先算清。",
           "emphasis": false
         }
       ],
       "chart": {
         "type": "bar",
-        "title": "新青安月付比較：1000萬貸款",
-        "y_label": "月付金額（元）",
+        "title": "新青安月付比較",
+        "y_label": "每月還款（元）",
         "series": [
           {
-            "name": "月付",
+            "name": "示例月付",
             "points": [
               {
-                "label": "寬限期前5年",
+                "label": "寬限期",
                 "value": 15000.0,
                 "unit": "元"
               },
               {
-                "label": "35年",
+                "label": "35年本息",
                 "value": 36000.0,
                 "unit": "元"
               },
               {
-                "label": "40年",
+                "label": "40年本息",
                 "value": 32000.0,
                 "unit": "元"
               }
@@ -364,145 +359,167 @@
         ]
       },
       "attribution": "根據TVBS《健康2.0》報導指出",
-      "est_seconds": 35.0,
+      "est_seconds": 36.0,
       "plagiarism_overlap": 0.0,
       "plagiarism_lcs": 3,
       "plagiarism_ok": true,
-      "rewrite_attempts": 0
+      "rewrite_attempts": 0,
+      "numbers_unverified": []
     },
     {
-      "segment_id": 5,
-      "title": "新青安隱憂一次看",
-      "hook": "便宜房貸，真的更划算嗎？",
+      "segment_id": 7,
+      "title": "安平台中單價飆",
+      "hook": "中南部房價，衝到哪裡了？",
       "lines": [
         {
           "text": "根據TVBS《健康2.0》報導指出",
           "emphasis": false
         },
         {
-          "text": "短期帶動買氣與價格，長期效益存疑。",
+          "text": "安平新案約30到35萬/坪起跳",
           "emphasis": false
         },
         {
-          "text": "40年攤還讓月付變低，但總利息更高。",
+          "text": "現在不少案已衝破40萬/坪",
           "emphasis": false
         },
         {
-          "text": "補貼退場或利率回升，負擔再升。",
+          "text": "五年寬限期帶動買氣狂飆",
           "emphasis": false
         },
         {
-          "text": "寬限期1.5萬，期滿跳到3.2萬、3.4萬。",
+          "text": "一屋多價、搶到五個斡旋",
           "emphasis": false
         },
         {
-          "text": "理想房貸佔薪比在40%以內較適當。",
+          "text": "兩房小宅被掃光超對年輕人",
           "emphasis": false
         },
         {
-          "text": "受訪者目前約30%，但仍需評估風險。",
+          "text": "台中蛋黃區豪宅70到80萬/坪",
           "emphasis": false
         },
         {
-          "text": "買前先算清現金流，別只看低利。",
+          "text": "高樓層更見90萬/坪成交價",
+          "emphasis": false
+        },
+        {
+          "text": "中南部單價新高仍在發酵",
           "emphasis": false
         }
       ],
       "chart": {
         "type": "bar",
-        "title": "房貸佔薪比示意",
-        "y_label": "佔薪比",
+        "title": "中南部單坪價帶",
+        "y_label": "單價",
         "series": [
           {
-            "name": "房貸負擔",
+            "name": "單坪價",
             "points": [
               {
-                "label": "建議上限",
-                "value": 40.0,
-                "unit": "%"
+                "label": "安平下限",
+                "value": 30.0,
+                "unit": "萬/坪"
               },
               {
-                "label": "受訪者現況",
-                "value": 30.0,
-                "unit": "%"
+                "label": "安平上限",
+                "value": 35.0,
+                "unit": "萬/坪"
+              },
+              {
+                "label": "安平突破",
+                "value": 40.0,
+                "unit": "萬/坪"
+              },
+              {
+                "label": "台中豪宅",
+                "value": 70.0,
+                "unit": "萬/坪"
+              },
+              {
+                "label": "台中高樓層",
+                "value": 90.0,
+                "unit": "萬/坪"
               }
             ]
           }
         ]
       },
       "attribution": "根據TVBS《健康2.0》報導指出",
-      "est_seconds": 35.0,
+      "est_seconds": 38.0,
       "plagiarism_overlap": 0.0,
       "plagiarism_lcs": 5,
       "plagiarism_ok": true,
-      "rewrite_attempts": 0
+      "rewrite_attempts": 0,
+      "numbers_unverified": []
     },
     {
       "segment_id": 8,
-      "title": "回檔與房貸壓力",
-      "hook": "今年房市，壓力在哪？",
+      "title": "房市回檔與台北化",
+      "hook": "中南部房市吹冷風？",
       "lines": [
         {
           "text": "根據TVBS《健康2.0》報導指出",
           "emphasis": false
         },
         {
-          "text": "2024台中總案量約5800億。",
+          "text": "下半年量縮，價格開始回調",
           "emphasis": false
         },
         {
-          "text": "2025縮到4100億，市場明顯量縮。",
+          "text": "臺中案量2024約5800億",
           "emphasis": false
         },
         {
-          "text": "量縮帶來價格修正，年跌3%到5%。",
+          "text": "2025縮到約4100多億",
           "emphasis": false
         },
         {
-          "text": "北市買房最吃力，負擔率60%。",
+          "text": "近年每年跌幅約3%到5%",
           "emphasis": false
         },
         {
-          "text": "三都也不輕鬆，多數逾40%。",
+          "text": "三都房貸負擔率多在40%以上",
           "emphasis": false
         },
         {
-          "text": "台中更逼近45%，壓力上升。",
+          "text": "臺北負擔率約60%",
           "emphasis": false
         },
         {
-          "text": "面對回檔，現金流要先算清。",
+          "text": "臺中正逼近45%，購屋更吃力",
           "emphasis": false
         }
       ],
       "chart": {
         "type": "bar",
-        "title": "台中總案量變化",
-        "y_label": "金額（億）",
+        "title": "臺中總案量變化：2024 vs 2025",
+        "y_label": "金額（億元）",
         "series": [
           {
-            "name": "台中總案量",
+            "name": "臺中總案量",
             "points": [
               {
                 "label": "2024",
                 "value": 5800.0,
-                "unit": "億"
+                "unit": "億元"
               },
               {
                 "label": "2025",
                 "value": 4100.0,
-                "unit": "億"
+                "unit": "億元"
               }
             ]
           }
         ]
       },
       "attribution": "根據TVBS《健康2.0》報導指出",
-      "est_seconds": 35.0,
+      "est_seconds": 36.0,
       "plagiarism_overlap": 0.0,
-      "plagiarism_lcs": 4,
+      "plagiarism_lcs": 5,
       "plagiarism_ok": true,
-      "rewrite_attempts": 0
+      "rewrite_attempts": 0,
+      "numbers_unverified": []
     }
   ],
   "rejected_clips": []

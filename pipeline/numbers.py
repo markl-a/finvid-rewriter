@@ -17,10 +17,11 @@ UNIT_SCALE = {"萬": 10_000, "万": 10_000, "億": 100_000_000, "亿": 100_000_0
 
 _RUN = re.compile(
     r"(?:百分之)?"
-    r"[0-9０-９][0-9０-９,.]*(?:[萬万億亿][0-9０-９]?(?:[萬万億亿])?)?"
+    r"[0-9０-９][0-9０-９,.]*(?:[萬万億亿](?:[0-9０-９](?![0-9０-９]))?)?"  # 1萬5 yes, 5800億2025 no
     r"|(?:百分之)?[零〇一二兩两三四五六七八九十百千萬万億亿點点]+"
 )
 _ARABIC = re.compile(r"[0-9]+(?:\.[0-9]+)?")
+_RANGE_SEPARATORS = {"到", "至", "~", "～", "-", "－", "–", "—", "跟", "和", "與"}
 
 
 def _fullwidth(s: str) -> str:
@@ -55,8 +56,8 @@ def _parse_cn(s: str) -> float | None:
             return None
         frac = "".join(str(_DIGITS[c]) for c in tail if c in _DIGITS)
         return float(f"{int(base)}.{frac}") if frac else base
-    if not any(c in _DIGITS or c in _SMALL or c in _BIG for c in s):
-        return None
+    if not any(c in _DIGITS or c == "十" for c in s):
+        return None  # a stray 億 / 萬 / 千 left over from 「4100多億」 is a unit, not a number
     total = 0.0
     rest = s
     for big_ch, big in (("億", 1e8), ("亿", 1e8), ("萬", 1e4), ("万", 1e4)):
@@ -133,11 +134,26 @@ def number_tokens(text: str) -> list[tuple[str, list[float]]]:
     """Each number-ish token in the text with the value(s) it can mean:
     「1.5萬」 -> [1.5, 15000], 「四成」 -> [40], 「三萬二三萬四」 -> [32000, 34000]."""
     out: list[tuple[str, list[float]]] = []
+    spans: list[tuple[int, int]] = []
     for m in _RUN.finditer(text):
         vals = _parse_run(m.group())
         if vals:
             out.append((m.group(), vals))
+            spans.append((m.start(), m.end()))
+    # 「70到80萬」: a bare number before 到/至/~ shares the 萬/億 unit of the number after it
+    for i in range(len(out) - 1):
+        tok, vals = out[i]
+        nxt_tok, nxt_vals = out[i + 1]
+        between = text[spans[i][1]:spans[i + 1][0]]
+        if (len(vals) == 1 and tok[-1] not in _BIG and between in _RANGE_SEPARATORS
+                and nxt_tok and nxt_tok[-1] in _BIG and len(nxt_vals) >= 1):
+            out[i] = (tok, vals + [vals[0] * _BIG[nxt_tok[-1]]])
     for m in re.finditer(r"([一二兩两三四五六七八九十]|[0-9]+)成(?![本交績效])", text):
+        v = _parse_run(m.group(1))
+        if v:
+            out.append((m.group(), [v[0] * 10]))
+    # 「九字頭」 (real-estate talk for 90-something): the stated figure is the tens value
+    for m in re.finditer(r"([一二兩两三四五六七八九]|[1-9])字頭", text):
         v = _parse_run(m.group(1))
         if v:
             out.append((m.group(), [v[0] * 10]))
