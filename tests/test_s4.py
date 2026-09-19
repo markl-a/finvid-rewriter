@@ -265,3 +265,123 @@ def test_shot_prompts_use_visual_keywords():
     assert len(ps) == 3 and ps[0].startswith("Slow push-in") and "mortgage papers" in ps[1] or "mortgage papers" in ps[2]
     assert all("no text" in p for p in ps)
     assert shot_prompts(_clip(), 1)[0].startswith("Cinematic vertical b-roll for a finance news short")
+
+
+def test_execute_with_pexels_broll(tmp_path, monkeypatch):
+    """FINVID_BROLL=pexels without an AI provider: one stock clip per line + one for the hook, in
+    playback order, so compose gets one scene window per line; footage runs under the whole clip."""
+    from PIL import Image
+    from pipeline.render.broll.pexels import PexelsBroll
+
+    monkeypatch.setattr(tts, "synthesize", _silent_audio)
+    s = _settings(broll="pexels", pexels_api_key="test-key")
+    queries: list[str] = []
+
+    def fake_fetch(self, query: str, log) -> Path:
+        queries.append(query)
+        assert self.cache_dir == tmp_path / "_broll"  # shared cache next to the workdirs, never data/
+        self.cache_dir.mkdir(exist_ok=True)
+        return _fake_shot(s, self.cache_dir / f"{len(queries)}_8s.mp4", seconds=0.8)
+
+    monkeypatch.setattr(PexelsBroll, "fetch", fake_fetch)
+    ctx = _ctx(tmp_path, s)
+    seg = lambda i: TopicSegment(id=i, start=0, end=30, topic=f"t{i}", summary="s", hook_score=4, selected=True)
+    c1, c2 = _clip(1, chart=_chart()), _clip(2, chart=None)
+    c1.lines[1] = ScriptLine(text=c1.lines[1].text, emphasis=True, visual="mortgage papers kitchen table")
+    c1.lines[2] = ScriptLine(text=c1.lines[2].text, visual="taipei apartment towers dusk")
+    out = ScriptsOutput(video_id=VID, source_name="TVBS《健康2.0》", segments=[seg(1), seg(2)], clips=[c1, c2])
+    ctx.path("03_scripts.json").write_text(json.dumps(out.model_dump(), ensure_ascii=False), encoding="utf-8")
+
+    res = run_stage(ctx, s4.STAGE, s4.stage_config(ctx), s4.execute)
+
+    assert res.meta["clips_rendered"] == 2 and res.meta["broll"] == "pexels" and res.meta["ai_video"] == "none"
+    # hook borrows the first non-empty visual; body lines use their own (empty -> "" -> generic query)
+    assert queries[:4] == ["mortgage papers kitchen table", "", "mortgage papers kitchen table",
+                           "taipei apartment towers dusk"]
+    assert queries[4:] == [""] * 4 and len(queries) == 8  # clip 2 has no keywords at all
+    rend = RenderOutput.model_validate_json(ctx.path("04_render.json").read_text(encoding="utf-8"))
+    for c in rend.clips:
+        assert len(c.broll_paths) == 3 + 1 and c.broll_provider == "pexels"  # lines + hook
+        assert all(ctx.path(p).exists() and p.startswith("../_broll/") for p in c.broll_paths)
+        assert c.ai_shot_path is None and c.ai_shot_paths == []
+    px_entry = next(c for c in res.costs if c.provider == "pexels")
+    assert px_entry.unit == "request" and px_entry.usd == 0 and not px_entry.estimated
+    assert res.usd == 0.0
+    assert any("one clip per line" in l for l in ctx._logs)  # type: ignore[attr-defined]
+
+    mp4 = ctx.path(rend.clips[0].video_path)
+    dur = rend.clips[0].duration_sec
+
+    def px(t: float, xy: tuple[int, int]) -> tuple[int, int, int]:
+        out = tmp_path / f"f{t}.png"
+        subprocess.run([s.ffmpeg_bin(), "-y", "-v", "error", "-ss", str(t), "-i", str(mp4),
+                        "-frames:v", "1", str(out)], check=True, capture_output=True, text=True)
+        return Image.open(out).convert("RGB").getpixel(xy)
+
+    W, H = s.video_width, s.video_height
+    def colourful(c): return max(c) - min(c) > 40
+    assert colourful(px(0.5, (W // 2, H // 2))), "stock footage under the hook"
+    assert colourful(px(dur - 0.3, (30, H // 2))), "stock footage runs to the very end"
+    card_pts = [(W // 2 + dx, int(H * 0.36)) for dx in (-300, -150, 0, 150, 300)]
+    assert any(min(px(3.0, pt)) > 200 for pt in card_pts), "chart card overlaid during body lines"
+
+
+def test_execute_broll_with_ai_provider_hook_only(tmp_path, monkeypatch):
+    """With an AI provider as well, only ONE AI shot (the hook) is generated per clip regardless of
+    FINVID_AI_SHOTS_PER_CLIP; the body lines are all stock footage."""
+    from pipeline.render.aivideo import ShotResult
+    from pipeline.render.broll.pexels import PexelsBroll
+    from pipeline.stages import s4_render
+
+    monkeypatch.setattr(tts, "synthesize", _silent_audio)
+    s = _settings(broll="pexels", pexels_api_key="test-key", ai_shots_per_clip=2)
+    queries: list[str] = []
+    monkeypatch.setattr(PexelsBroll, "fetch", lambda self, q, log: (
+        queries.append(q), self.cache_dir.mkdir(exist_ok=True),
+        _fake_shot(s, self.cache_dir / f"{len(queries)}_8s.mp4", seconds=0.8))[2])
+
+    class FakeAI:
+        name, model = "fake-ai", "m"
+        def __init__(self): self.calls = 0
+        def estimate(self, n, sec): return []
+        def generate(self, prompt, out, *, seconds, seed, log):
+            self.calls += 1
+            return ShotResult(path=_fake_shot(s, out, seconds=0.8))
+
+    ai = FakeAI()
+    monkeypatch.setattr(s4_render, "make_provider", lambda _s: ai)
+    ctx = _ctx(tmp_path, s, max_clips=1)
+    _scripts_json(ctx.workdir)
+    res = run_stage(ctx, s4.STAGE, s4.stage_config(ctx), s4.execute)
+
+    assert ai.calls == 1 and queries == ["", "", ""]  # hook = AI shot; 3 body lines = 3 Pexels queries
+    rend = RenderOutput.model_validate_json(ctx.path("04_render.json").read_text(encoding="utf-8"))
+    c = rend.clips[0]
+    assert c.ai_shot_path == "04_clips/ai_01.mp4" and len(c.ai_shot_paths) == 1 and len(c.broll_paths) == 3
+    assert any("FINVID_AI_SHOTS_PER_CLIP=2 ignored" in l for l in ctx._logs)  # type: ignore[attr-defined]
+    assert res.meta["broll"] == "pexels" and res.meta["ai_video"] == "fake-ai"
+
+
+def test_dry_run_estimates_pexels_requests(tmp_path, monkeypatch):
+    monkeypatch.setattr(tts, "synthesize", lambda *a, **k: (_ for _ in ()).throw(AssertionError("no TTS")))
+    ctx = _ctx(tmp_path, _settings(broll="pexels"), dry_run=True)  # no key needed for the estimate
+    ctx.workdir.mkdir(parents=True, exist_ok=True)
+    _scripts_json(ctx.workdir)
+    res = run_stage(ctx, s4.STAGE, s4.stage_config(ctx), s4.execute)
+    est = next(c for c in res.costs if c.provider == "pexels")
+    assert est.estimated and est.usd == 0 and est.quantity == 2 * (3 + 1)  # 2 clips x (3 lines + hook)
+    assert any("~8 Pexels requests, $0" in l for l in ctx._logs)  # type: ignore[attr-defined]
+    assert not (tmp_path / "_broll").exists()
+
+
+def test_stage_config_includes_broll():
+    ctx_none = RunContext.create(_settings(), URL, data_dir=Path("x"), dry_run=True)
+    ctx_px = RunContext.create(_settings(broll="pexels", broll_max_clip_seconds=6), URL, data_dir=Path("x"), dry_run=True)
+    assert s4.stage_config(ctx_none)["broll"] is None
+    assert s4.stage_config(ctx_px)["broll"] == {"source": "pexels", "max_clip_seconds": 6.0}
+    assert s4.broll_queries(_clip(), with_hook=True) == [""] * 4
+    c = _clip(); c.ai_shot = "Slow push-in over Taipei rooftops"
+    assert s4.broll_queries(c, with_hook=True)[0] == "Slow push-in over Taipei rooftops"
+    c.lines[2] = ScriptLine(text="x", visual="harbour cranes")
+    assert s4.broll_queries(c, with_hook=True) == ["harbour cranes", "", "", "harbour cranes"]
+    assert s4.broll_queries(c, with_hook=False) == ["", "", "harbour cranes"]

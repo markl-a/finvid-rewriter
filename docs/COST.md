@@ -17,6 +17,7 @@
 | TTS | `gpt-4o-mini-tts` | $0.60 / 1M 字元 + 音訊 token ≈ $0.00005/字 | 可選 |
 | AI 鏡頭（免費雲端） | HF ZeroGPU Space（Lightricks/ltx-video-distilled） | $0，每段約 25 秒；匿名每天約 1–2 段，免費帳號 token 更多 | `FINVID_AI_VIDEO=hf`；額度即預算 |
 | AI 鏡頭（本機） | ComfyUI + LTX-Video 2B distilled | $0，每段 5 秒約 80–120 秒 GPU（Radeon 8060S 內顯） | `FINVID_AI_VIDEO=comfy`；帳本記 gpu_second |
+| 實拍素材 B-roll | Pexels Video API | $0，每小時 200 次、每月 20,000 次搜尋 | `FINVID_BROLL=pexels`；帳本記 request，搜尋與下載都快取 |
 | AI 影片 API（對照用） | Runway / Kling / Veo 類 | ≈ $0.25 / 秒 | 流程不會呼叫，只算對照 |
 
 ## 2. 本片一次完整執行的估算與實際
@@ -94,6 +95,7 @@
 - 生成的閘門跟寫腳本一樣：只給通過篩選與反抄襲閘的 clip、每支固定段數、預算閘、依 (provider, model, workflow, prompt) hash 快取（換版面重渲染時 6 段全部命中，33 秒完成）。
 - 兩個免費 provider：HF ZeroGPU（雲端、25 秒/段、每日額度）與本機 ComfyUI（80–120 秒/段、無上限），同一個開源 LTX-Video 模型，`hf,comfy` 先花免費額度再用本機。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
 - 帳本仍記一筆「整支都用 AI 影片 API」的 reference 費用（3 支約 $27.5），讓省下的量可見。
+- 第三個 $0 選項是真實素材：`FINVID_BROLL=pexels` 每句台詞從 Pexels 拉一段直式實拍素材（查詢字串就是 Pass B 已寫好的 `visual`，不多叫 LLM），可商用免署名；貴的不是錢而是額度（每小時 200 次搜尋），所以搜尋結果與下載都快取在 `data/_broll/` 跨影片共用，重跑 0 次呼叫。跟 AI 鏡頭可以並用：hook 用唯一一段 AI 鏡頭，其餘全實拍，GPU 時間從每支 2 段降到 1 段。
 
 ### 冪等快取的粒度
 - 以 stage 為單位，key = 影響輸出的設定 hash。改 Pass B 的模型只重做 s3、s4，不重做 STT。

@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     # keys (no prefix)
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     hf_token: str | None = Field(default=None, validation_alias="HF_TOKEN")  # optional: bigger ZeroGPU quota
+    pexels_api_key: str | None = Field(default=None, validation_alias="PEXELS_API_KEY")  # FINVID_BROLL=pexels
 
     # step 2
     stt_provider: str = "openai"  # openai | local
@@ -62,6 +63,10 @@ class Settings(BaseSettings):
     comfy_cfg: float = 1.0
     comfy_timeout_sec: float = 1800
     comfy_est_gpu_seconds: float = 90  # dry-run estimate per shot: measured 79-107 s on a Radeon 8060S iGPU
+
+    # step 4: real stock footage under every line. none = keep AI shots / static card (default)
+    broll: str = "none"  # none | pexels (free key, 200 requests/hour, commercial use, no attribution)
+    broll_max_clip_seconds: float = 8.0  # each downloaded clip is trimmed to this before the ping-pong loop
 
     # guardrails
     max_budget_usd: float = 1.0
