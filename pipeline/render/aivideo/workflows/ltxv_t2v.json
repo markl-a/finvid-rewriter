@@ -1,0 +1,14 @@
+{
+  "_comment": "LTX-Video 2B distilled, text-to-video, ComfyUI API format. Placeholders in <<...>> are filled by pipeline/render/aivideo/comfy.py. Mirrors ComfyUI_examples/ltxv text-to-video with the distilled model's 8-step settings.",
+  "1": {"class_type": "CheckpointLoaderSimple", "inputs": {"ckpt_name": "<<checkpoint>>"}},
+  "2": {"class_type": "CLIPLoader", "inputs": {"clip_name": "<<text_encoder>>", "type": "ltxv", "device": "default"}},
+  "3": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["2", 0], "text": "<<prompt>>"}},
+  "4": {"class_type": "CLIPTextEncode", "inputs": {"clip": ["2", 0], "text": "<<negative>>"}},
+  "5": {"class_type": "EmptyLTXVLatentVideo", "inputs": {"width": "<<width>>", "height": "<<height>>", "length": "<<frames>>", "batch_size": 1}},
+  "6": {"class_type": "LTXVConditioning", "inputs": {"positive": ["3", 0], "negative": ["4", 0], "frame_rate": "<<fps>>"}},
+  "7": {"class_type": "LTXVScheduler", "inputs": {"steps": "<<steps>>", "max_shift": 2.05, "base_shift": 0.95, "stretch": true, "terminal": 0.1, "latent": ["5", 0]}},
+  "8": {"class_type": "KSamplerSelect", "inputs": {"sampler_name": "euler"}},
+  "9": {"class_type": "SamplerCustom", "inputs": {"model": ["1", 0], "add_noise": true, "noise_seed": "<<seed>>", "cfg": "<<cfg>>", "positive": ["6", 0], "negative": ["6", 1], "sampler": ["8", 0], "sigmas": ["7", 0], "latent_image": ["5", 0]}},
+  "10": {"class_type": "VAEDecode", "inputs": {"samples": ["9", 0], "vae": ["1", 2]}},
+  "11": {"class_type": "SaveWEBM", "inputs": {"images": ["10", 0], "filename_prefix": "finvid/<<prefix>>", "codec": "vp9", "fps": "<<fps>>", "crf": 20}}
+}

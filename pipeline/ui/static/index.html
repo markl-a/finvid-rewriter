@@ -321,6 +321,8 @@
       <ol>${(clip.lines || []).map(l => `<li class="${l.emphasis ? 'em' : ''}">${esc(l.text)}</li>`).join('')}</ol>
       ${clip.attribution ? `<div class="attr">${esc(clip.attribution)}</div>` : ''}
       <div class="small" style="margin-top:6px">反抄襲：${plag}</div>
+      ${rv.ai_shot_path ? `<div class="small" style="margin-top:6px">AI 開場鏡頭：<span class="badge b-ok">${esc(rv.ai_shot_provider || 'ai')}</span> ${rv.ai_shot_seconds ? Number(rv.ai_shot_seconds).toFixed(0) + 's GPU · $0' : 'cache hit'} <span class="muted">${clip.ai_shot ? '· ' + esc(clip.ai_shot.slice(0, 90)) + '…' : ''}</span></div>
+      <video controls preload="metadata" style="max-height:240px" src="/files/${encodeURIComponent(vid)}/${esc(rv.ai_shot_path)}"></video>` : ''}
       ${chart}
     </div>`;
   }

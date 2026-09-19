@@ -3,24 +3,33 @@
   "clips": [
     {
       "segment_id": 5,
-      "title": "新青安月付這樣差",
+      "title": "新青安月付差多大？",
       "video_path": "04_clips/clip_05.mp4",
-      "duration_sec": 38.99,
-      "chart_path": "04_clips/chart_05.png"
+      "duration_sec": 37.55,
+      "chart_path": "04_clips/chart_05.png",
+      "ai_shot_path": "04_clips/ai_05.mp4",
+      "ai_shot_provider": "comfyui",
+      "ai_shot_seconds": 78.6
     },
     {
       "segment_id": 7,
-      "title": "安平台中單價飆",
+      "title": "安平台中價帶爆衝",
       "video_path": "04_clips/clip_07.mp4",
-      "duration_sec": 40.16,
-      "chart_path": "04_clips/chart_07.png"
+      "duration_sec": 33.54,
+      "chart_path": "04_clips/chart_07.png",
+      "ai_shot_path": "04_clips/ai_07.mp4",
+      "ai_shot_provider": "comfyui",
+      "ai_shot_seconds": 84.6
     },
     {
       "segment_id": 8,
-      "title": "房市回檔與台北化",
+      "title": "房市回檔與負擔臺北化",
       "video_path": "04_clips/clip_08.mp4",
-      "duration_sec": 36.3,
-      "chart_path": "04_clips/chart_08.png"
+      "duration_sec": 39.02,
+      "chart_path": "04_clips/chart_08.png",
+      "ai_shot_path": "04_clips/ai_08.mp4",
+      "ai_shot_provider": "comfyui",
+      "ai_shot_seconds": 84.5
     }
   ]
 }

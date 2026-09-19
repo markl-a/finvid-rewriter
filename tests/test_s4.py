@@ -201,3 +201,40 @@ def test_dry_run_calls_no_tts(tmp_path, monkeypatch):
     assert tts_est.usd > 0
     assert next(c for c in res.costs if c.provider == "reference").usd == pytest.approx(56 * 0.25)
     assert not ctx.path("04_render.json").exists()
+
+
+def _fake_shot(settings: Settings, out: Path, seconds: float = 2.0) -> Path:
+    """Stand-in for an AI-generated shot: a 24 fps 576x1024 test pattern, no audio."""
+    subprocess.run([settings.ffmpeg_bin(), "-y", "-v", "error", "-nostdin",
+                    "-f", "lavfi", "-i", f"testsrc2=size=576x1024:rate=24", "-t", str(seconds),
+                    "-pix_fmt", "yuv420p", str(out)], check=True, capture_output=True, text=True)
+    return out
+
+
+def test_compose_with_ai_intro(tmp_path):
+    """The generated shot opens the clip for the hook's duration, then the card takes over."""
+    from PIL import Image
+    s = _settings()
+    clip = _clip(chart=_chart())
+    png = render_chart(clip.chart, tmp_path / "chart.png")
+    line_audio = tts.synthesize_lines(s, [clip.hook, clip.lines[0].text, clip.lines[1].text],
+                                      tmp_path, "c", synth=_silent_audio)
+    shot = _fake_shot(s, tmp_path / "shot.mp4", seconds=0.8)  # shorter than the hook: must loop
+    mp4 = tmp_path / "out.mp4"
+    dur = compose_clip(s, clip, line_audio, png, mp4, "TVBS《健康2.0》", intro_video=shot)
+    assert 3.6 <= dur <= 4.4, dur
+    streams = _streams(s, mp4)
+    assert "video" in streams and "audio" in streams
+
+    def frame_at(t: float) -> Image.Image:
+        out = tmp_path / f"f{t}.png"
+        subprocess.run([s.ffmpeg_bin(), "-y", "-v", "error", "-ss", str(t), "-i", str(mp4),
+                        "-frames:v", "1", str(out)], check=True, capture_output=True, text=True)
+        return Image.open(out).convert("RGB")
+
+    # during the hook the centre shows the (colourful) test pattern; afterwards the navy card + chart
+    mid = (s.video_width // 2, s.video_height // 2)
+    r, g, b = frame_at(0.5).getpixel(mid)
+    assert max(r, g, b) - min(r, g, b) > 40, "intro frame should show the footage, not the navy card"
+    r2, g2, b2 = frame_at(3.0).getpixel((s.video_width // 2, int(s.video_height * 0.25)))
+    assert b2 > r2, "after the hook the static navy card is back"

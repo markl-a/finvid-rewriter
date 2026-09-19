@@ -29,7 +29,7 @@ from ..models import (
 )
 
 STAGE = "s3_script"
-PROMPT_VERSION = 7  # bump whenever a prompt below changes -> invalidates the s3 cache
+PROMPT_VERSION = 8  # bump whenever a prompt below changes -> invalidates the s3 cache
 
 TRANSCRIPT_FILE = "02_transcript.json"
 INFO_FILE = "01_info.json"
@@ -74,8 +74,10 @@ PASS_B_SYSTEM = """你是財經短影音編劇。使用者會給你一個主題�
 5. 如果 has_chart_data 為 true，提供 chart：{{"type": "bar" 或 "line", "title": 圖表標題, "y_label": Y 軸說明, "series": [{{"name": 系列名稱, "points": [{{"label": 標籤, "value": 數字, "unit": 單位}}]}}]}}，只能使用 data_points 或逐字稿裡真的出現過的數字；否則 chart 為 null。
 6. title：15 字以內。est_seconds：預估播放秒數（數字）。
 7. 台詞裡的金額用台灣口語單位寫：1000萬、2380萬、40萬/坪、1.5萬，不要展開成 10000000 或用科學記號。同一張 chart 的所有 points 必須是同一個單位，不同單位的數字不要放進同一張圖。
+8. ai_shot：用英文寫一段 40 到 70 字的開場畫面描述，給 AI 影片模型生成 5 秒直式 B-roll：描述具體的場景、鏡頭運動（slow push-in、pan 等）、光線與氛圍，要跟這支腳本的主題有關（房市、貸款、城市、家庭、圖表等意象）。不可以出現文字、字幕、logo、可辨識的人臉或真實品牌。
+9. 每一句 lines 加 visual：2 到 4 個英文關鍵字，描述這句話適合搭配的素材畫面（例如 "taipei apartment building", "family kitchen table"），不要有文字或人臉。
 只回傳 JSON，格式如下，不要輸出任何其他文字：
-{{"segment_id": 整數, "title": "...", "hook": "...", "lines": [{{"text": "...", "emphasis": false}}], "chart": null 或 chart 物件, "attribution": "{attribution}", "est_seconds": 35}}"""
+{{"segment_id": 整數, "title": "...", "hook": "...", "lines": [{{"text": "...", "emphasis": false, "visual": "..."}}], "chart": null 或 chart 物件, "attribution": "{attribution}", "est_seconds": 35, "ai_shot": "..."}}"""
 
 REWRITE_INSTRUCTION = """
 【重寫要求】上一版腳本與逐字稿的重疊太高：{n}-gram 重疊率 {overlap:.0%}（上限 {max_overlap:.0%}），最長相同字串 {lcs} 字（上限 {max_lcs} 字），相同的片段是：「{lcs_text}」。
@@ -377,7 +379,8 @@ def parse_pass_b(payload: dict[str, Any], seg: TopicSegment, attribution: str) -
         else:
             continue
         if text:
-            lines.append(ScriptLine(text=humanize_numbers(text), emphasis=emphasis))
+            visual = str(item.get("visual", "")).strip() if isinstance(item, dict) else ""
+            lines.append(ScriptLine(text=humanize_numbers(text), emphasis=emphasis, visual=visual))
     chart: ChartSpec | None = None
     raw_chart = payload.get("chart")
     if seg.has_chart_data and isinstance(raw_chart, dict):
@@ -406,6 +409,7 @@ def parse_pass_b(payload: dict[str, Any], seg: TopicSegment, attribution: str) -
         chart=chart,
         attribution=attribution,
         est_seconds=_as_float(payload.get("est_seconds"), 30.0) or 30.0,
+        ai_shot=str(payload.get("ai_shot") or "").strip(),
     )
     ensure_attribution(clip, attribution)
     if not clip.lines:

@@ -90,6 +90,52 @@ def _gradient(w: int, h: int) -> Image.Image:
     return Image.composite(bottom, top, mask)
 
 
+def _draw_title(d: ImageDraw.ImageDraw, clip: ScriptClip, W: int, k: float, bold: str,
+                stroke: bool = False) -> None:
+    cx = W // 2
+    tsize = int(TITLE_SIZE * k)
+    tfont = _font(bold, tsize)
+    tlines = wrap_cjk(clip.title, TITLE_CHARS)[:3]
+    y = _draw_lines(d, tlines, cx, int(TITLE_Y * k), tfont, WHITE, int(tsize * 1.35),
+                    stroke_width=max(2, int(4 * k)) if stroke else 0, stroke_fill=STROKE if stroke else None)
+    rule_w = int(120 * k)
+    d.rounded_rectangle([cx - rule_w // 2, y + int(10 * k), cx + rule_w // 2, y + int(18 * k)],
+                        radius=int(4 * k), fill=ACCENT)
+
+
+def _draw_attribution(d: ImageDraw.ImageDraw, clip: ScriptClip, source_name: str, W: int, k: float,
+                      reg: str) -> None:
+    cx = W // 2
+    by = int(BAND_Y * k)
+    d.line([(int(80 * k), by), (W - int(80 * k), by)], fill="#334155", width=max(1, int(2 * k)))
+    afont = _font(reg, int(ATTR_SIZE * k))
+    nfont = _font(reg, int(NOTE_SIZE * k))
+    attribution = f"資料來源：{source_name}" if source_name else clip.attribution
+    d.text((cx, by + int(28 * k)), attribution, font=afont, fill=WHITE, anchor="ma")
+    d.text((cx, by + int(28 * k) + int(ATTR_SIZE * 1.5 * k)), REWRITE_NOTE, font=nfont, fill=MUTED, anchor="ma")
+
+
+def build_frame_overlay(settings: Settings, clip: ScriptClip, source_name: str, out_png: Path) -> Path:
+    """Transparent RGBA layer for the AI opening shot: dark gradients top/bottom for legibility,
+    title + accent rule, attribution band. The generated footage shows through the middle."""
+    W, H = settings.video_width, settings.video_height
+    k = W / REF_W
+    reg, bold = find_cjk_font(), find_cjk_font_bold()
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    # vignette bands so white text stays readable on any footage
+    top_h, bot_h = int(520 * k), int(600 * k)
+    mask = Image.linear_gradient("L").resize((W, top_h)).transpose(Image.FLIP_TOP_BOTTOM)
+    img.paste(Image.new("RGBA", (W, top_h), (15, 23, 42, 200)), (0, 0), mask)
+    mask = Image.linear_gradient("L").resize((W, bot_h))
+    img.paste(Image.new("RGBA", (W, bot_h), (15, 23, 42, 230)), (0, H - bot_h), mask)
+    d = ImageDraw.Draw(img)
+    _draw_title(d, clip, W, k, bold, stroke=True)
+    _draw_attribution(d, clip, source_name, W, k, reg)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    img.save(out_png)
+    return out_png
+
+
 def build_background(settings: Settings, clip: ScriptClip, chart_png: Path | None, source_name: str,
                      out_png: Path) -> Path:
     W, H = settings.video_width, settings.video_height
@@ -99,14 +145,7 @@ def build_background(settings: Settings, clip: ScriptClip, chart_png: Path | Non
     d = ImageDraw.Draw(img)
     cx = W // 2
 
-    # --- title
-    tsize = int(TITLE_SIZE * k)
-    tfont = _font(bold, tsize)
-    tlines = wrap_cjk(clip.title, TITLE_CHARS)[:3]
-    y = _draw_lines(d, tlines, cx, int(TITLE_Y * k), tfont, WHITE, int(tsize * 1.35))
-    rule_w = int(120 * k)
-    d.rounded_rectangle([cx - rule_w // 2, y + int(10 * k), cx + rule_w // 2, y + int(18 * k)],
-                        radius=int(4 * k), fill=ACCENT)
+    _draw_title(d, clip, W, k, bold)
 
     # --- middle: chart card or key-message card
     mid_top, mid_bottom = int(MID_TOP * k), int(MID_BOTTOM * k)
@@ -142,14 +181,7 @@ def build_background(settings: Settings, clip: ScriptClip, chart_png: Path | Non
         d.text((cx, y0 + int(36 * k)), "重點", font=lab, fill=MUTED, anchor="ma")
         _draw_lines(d, hlines, cx, y0 + int(100 * k), hfont, WHITE, lh)
 
-    # --- bottom band: attribution
-    by = int(BAND_Y * k)
-    d.line([(int(80 * k), by), (W - int(80 * k), by)], fill="#334155", width=max(1, int(2 * k)))
-    afont = _font(reg, int(ATTR_SIZE * k))
-    nfont = _font(reg, int(NOTE_SIZE * k))
-    attribution = f"資料來源：{source_name}" if source_name else clip.attribution
-    d.text((cx, by + int(28 * k)), attribution, font=afont, fill=WHITE, anchor="ma")
-    d.text((cx, by + int(28 * k) + int(ATTR_SIZE * 1.5 * k)), REWRITE_NOTE, font=nfont, fill=MUTED, anchor="ma")
+    _draw_attribution(d, clip, source_name, W, k, reg)
 
     out_png.parent.mkdir(parents=True, exist_ok=True)
     img.save(out_png)
@@ -175,13 +207,17 @@ def build_subtitle(settings: Settings, text: str, out_png: Path, emphasis: bool 
 
 
 def compose_clip(settings: Settings, clip: ScriptClip, line_audio: list[tuple[str, Path, float]],
-                 chart_png: Path | None, out_mp4: Path, source_name: str) -> float:
+                 chart_png: Path | None, out_mp4: Path, source_name: str,
+                 intro_video: Path | None = None) -> float:
     """Render clip -> out_mp4. `line_audio` = [(text, audio_path, duration)] in playback order
-    (hook first, then clip.lines). Returns the measured duration in seconds."""
+    (hook first, then clip.lines). With `intro_video`, the generated shot (looped/trimmed to the
+    hook's duration, scaled+cropped to the frame, title/attribution laid over) opens the clip
+    and the static card takes over from the first body line. Returns the measured duration."""
     if not line_audio:
         raise ValueError("compose_clip needs at least one line of audio")
     emphasis = [False] + [ln.emphasis for ln in clip.lines]
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
+    W, H = settings.video_width, settings.video_height
 
     with tempfile.TemporaryDirectory(prefix="finvid_") as td:
         tmp = Path(td)
@@ -194,23 +230,41 @@ def compose_clip(settings: Settings, clip: ScriptClip, line_audio: list[tuple[st
             subs.append(build_subtitle(settings, text, tmp / f"sub_{i:02d}.png",
                                        emphasis=emphasis[i] if i < len(emphasis) else False))
 
-        cmd = [settings.ffmpeg_bin(), "-y", "-v", "error", "-nostdin",
-               "-loop", "1", "-framerate", "30", "-i", str(bg),
-               "-i", str(wav)]
+        cmd = [settings.ffmpeg_bin(), "-y", "-v", "error", "-nostdin"]
+        chain: list[str] = []
+        if intro_video is not None:
+            hook_end = timings[0][1] if len(timings) > 1 else total + 1.0
+            frame = build_frame_overlay(settings, clip, source_name, tmp / "frame.png")
+            cmd += ["-stream_loop", "-1", "-i", str(intro_video),          # 0: AI shot, looped
+                    "-loop", "1", "-framerate", "30", "-i", str(bg),        # 1: static card
+                    "-i", str(wav),                                         # 2: voice
+                    "-i", str(frame)]                                       # 3: title/attribution layer
+            first_sub, audio_in = 4, "2:a"
+            chain += [
+                f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1,"
+                f"trim=duration={hook_end:.3f},setpts=PTS-STARTPTS[iv]",
+                "[iv][3:v]overlay=0:0[iv2]",
+                f"[1:v]trim=duration={total + 1.0 - hook_end:.3f},setpts=PTS-STARTPTS[sv]",
+                "[iv2][sv]concat=n=2:v=1:a=0[base]",
+            ]
+            prev, tune = "[base]", []
+        else:
+            cmd += ["-loop", "1", "-framerate", "30", "-i", str(bg),        # 0: static card
+                    "-i", str(wav)]                                         # 1: voice
+            first_sub, audio_in = 2, "1:a"
+            prev, tune = "[0:v]", ["-tune", "stillimage"]
         for s in subs:
             cmd += ["-i", str(s)]
-        sub_y = int(SUB_Y * settings.video_width / REF_W)
-        chain: list[str] = []
-        prev = "[0:v]"
+        sub_y = int(SUB_Y * W / REF_W)
         for i, (start, end) in enumerate(timings):
             if i == len(timings) - 1:
                 end = max(end, total + 1.0)  # keep the last subtitle up until the video ends
             out = f"[v{i + 1}]"
-            chain.append(f"{prev}[{i + 2}:v]overlay=(W-w)/2:{sub_y}:enable='between(t,{start},{end})'{out}")
+            chain.append(f"{prev}[{first_sub + i}:v]overlay=(W-w)/2:{sub_y}:enable='between(t,{start},{end})'{out}")
             prev = out
         chain.append(f"{prev}format=yuv420p[vout]")
-        cmd += ["-filter_complex", ";".join(chain), "-map", "[vout]", "-map", "1:a",
-                "-c:v", "libx264", "-preset", "fast", "-crf", "22", "-tune", "stillimage",
+        cmd += ["-filter_complex", ";".join(chain), "-map", "[vout]", "-map", audio_in,
+                "-c:v", "libx264", "-preset", "fast", "-crf", "22", *tune,
                 "-r", "30", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "128k",
                 "-t", f"{total:.3f}", "-shortest", "-movflags", "+faststart", str(out_mp4)]

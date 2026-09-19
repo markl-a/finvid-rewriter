@@ -77,7 +77,7 @@ PASS_A_RESPONSE = {"segments": [
 PASS_B_GOOD = {
     1: {"segment_id": 1, "title": "台北買房要16年", "hook": "不吃不喝16年才買得起房？",
         "lines": [
-            {"text": "台北買房到底有多難", "emphasis": True},
+            {"text": "台北買房到底有多難", "emphasis": True, "visual": "taipei apartment skyline"},
             {"text": ATTR, "emphasis": False},
             {"text": "台北房價所得比高達15.7倍", "emphasis": True},
             {"text": "新北也來到12.3倍", "emphasis": False},
@@ -89,7 +89,7 @@ PASS_B_GOOD = {
                   "series": [{"name": "2024", "points": [
                       {"label": "台北市", "value": 15.7, "unit": "倍"},
                       {"label": "新北市", "value": 12.3, "unit": "倍"}]}]},
-        "attribution": ATTR, "est_seconds": 36},
+        "attribution": ATTR, "est_seconds": 36, "ai_shot": "Slow push-in over a dense Taipei apartment district at dusk, warm window lights"},
     2: {"segment_id": 2, "title": "升息後房貸多繳多少", "hook": "升息了，你的房貸多繳多少？",
         "lines": [
             {"text": "央行把重貼現率由1.875%拉高到2%", "emphasis": True},
@@ -276,6 +276,11 @@ def test_execute_end_to_end(tmp_path, monkeypatch):
     # Pass A system prompt carries the video title as the topic hint (no hard-coded theme)
     assert "節目標題：「房價還會漲嗎？」" in fake.calls[0]["system"]
     assert "{topic_hint}" not in fake.calls[0]["system"]
+
+    # Pass B v8 fields survive parsing; missing ones default to empty (older payloads still work)
+    c1 = next(c for c in data["clips"] if c["segment_id"] == 1)
+    assert c1["ai_shot"].startswith("Slow push-in") and c1["lines"][0]["visual"] == "taipei apartment skyline"
+    assert all(c["ai_shot"] == "" for c in data["clips"] if c["segment_id"] != 1)
 
     # Pass A: garbage entry dropped, 6 valid segments kept
     assert len(data["segments"]) == 6

@@ -10,10 +10,10 @@
 | 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
 | 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
 | 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.061（8 段候選，3 段寫腳本，省下 5 次強模型呼叫） |
-| 4 `s4_render` | 免費 TTS + matplotlib 重繪圖表 + ffmpeg 合成字幕 | edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 118 秒） |
-| | | **合計** | **$0.108** |
+| 4 `s4_render` | **AI 生成 5 秒開場鏡頭**（本機 ComfyUI + LTX-Video）+ 免費 TTS + matplotlib 重繪圖表 + ffmpeg 合成字幕 | ComfyUI (LTX-Video 2B) + edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭共 248 秒 GPU） |
+| | | **合計** | **$0.099** |
 
-對照：同樣 3 支用 AI 影片 API 生成約 $29.5。**第二次跑同一支影片：$0**（manifest 快取全命中）。
+對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
 數字來自 [data/demo/manifest.json](data/demo/manifest.json)，clone 下來不用 key 就能用 `finvid costs --url demo` 重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
 
 ---
@@ -68,6 +68,7 @@ finvid run
 03_scripts.json       所有候選段落（含被跳過的原因）+ 通過的腳本 + 被退回的腳本
 04_clips/clip_XX.mp4  短影音（1080×1920）
 04_clips/chart_XX.png 用數據重繪的圖表
+04_clips/ai_XX.mp4    AI 生成的 5 秒開場鏡頭（FINVID_AI_VIDEO=comfy 時；.json 是 prompt 與 GPU 秒數）
 04_render.json
 manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 ```
@@ -84,10 +85,10 @@ manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 | 2 租屋轉買房的生活考量 | 3 | 否 | 跳過：超過 max_clips |
 | 3 中古屋年限與空間折衷 | 3 | 是 | 跳過：超過 max_clips |
 | 4 個人理財與還款規劃 | 3 | 是 | 跳過：超過 max_clips |
-| 5 新青安政策細節與試算 | 5 | 是 | **選中** → 「新青安月付這樣差」 |
+| 5 新青安政策細節與試算 | 5 | 是 | **選中** → 「新青安月付差多大？」 |
 | 6 政策風險與個人負擔率 | 4 | 是 | 跳過：與段落 8 數字相同 |
-| 7 中南部房市漲勢與單價 | 5 | 是 | **選中** → 「安平台中單價飆」 |
-| 8 房市回檔與負擔率台北化 | 5 | 是 | **選中** → 「房市回檔與台北化」 |
+| 7 中南部房市漲勢與單價 | 5 | 是 | **選中** → 「安平台中價帶爆衝」 |
+| 8 房市回檔與負擔率台北化 | 5 | 是 | **選中** → 「房市回檔與負擔臺北化」 |
 
 三支腳本的反抄襲檢查：6 字 n-gram 重疊率都是 0%，最長共同子字串 3–5 字（都是數字或專有名詞）；數字溯源閘：10 個圖表點與口白中的每個數字都能在逐字稿找到（`numbers_unverified` 全空）。
 
@@ -113,6 +114,32 @@ python -m pytest -q           # 單元測試（不需要 key、不需要網路�
 
 ---
 
+### 第 4 步的 AI 開場鏡頭（可選，$0，需要 GPU）
+
+預設 `FINVID_AI_VIDEO=none`：影片是靜態卡 + 字幕 + 旁白，秒級完成、不需要 GPU。
+設 `FINVID_AI_VIDEO=comfy` 時，每支 clip 的**開場 hook 那幾秒**會換成 AI 生成的 5 秒直式 B-roll（畫面描述由第 3 步的 Pass B 一起寫在 `ai_shot`），之後接回圖表卡。用本機 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) + [LTX-Video 2B 蒸餾版](https://huggingface.co/Lightricks/LTX-Video)：**$0，不用任何 key**，代價是時間——demo 機器（AMD Radeon 8060S 內顯，32 GB）每段 79–107 秒。
+
+只生成開場 5 秒而不是整支 40 秒是刻意的：整支 AI 生成要 8 倍的 GPU 時間（或雲端 $2–5/支），而財經數據內容的畫面價值集中在前 3 秒能不能讓人停下來；數據本身用重繪的圖表比 AI 畫面更可信。
+
+```bash
+# 一次性安裝（NVIDIA 照 ComfyUI 官方 README；AMD Windows 照下面，來自 AMD 的 ROCm 部落格）
+py -3.12 -m venv D:\tools\comfyui-venv
+D:\tools\comfyui-venv\Scripts\pip install -f https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1/ "torch==2.9.1+rocm7.2.1" "torchvision==0.24.1+rocm7.2.1" "torchaudio==2.9.1+rocm7.2.1"
+git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git D:\tools\ComfyUI
+D:\tools\comfyui-venv\Scripts\pip install -r D:\tools\ComfyUI\requirements.txt   # 若 pip 想換掉 torch，用 -c 釘住 ROCm 版
+# 模型（約 11.5 GB）
+#   https://huggingface.co/Lightricks/LTX-Video/resolve/main/ltxv-2b-0.9.8-distilled.safetensors  -> ComfyUI/models/checkpoints/
+#   https://huggingface.co/Comfy-Org/mochi_preview_repackaged/resolve/main/split_files/text_encoders/t5xxl_fp8_e4m3fn_scaled.safetensors -> ComfyUI/models/text_encoders/
+
+# 啟動 ComfyUI（另一個終端）
+D:\tools\comfyui-venv\Scripts\python D:\tools\ComfyUI\main.py --listen 127.0.0.1 --port 8188
+
+# 跑
+FINVID_AI_VIDEO=comfy finvid run          # PowerShell: $env:FINVID_AI_VIDEO="comfy"; finvid run
+```
+
+流程在 `pipeline/render/aivideo/`：workflow 是 ComfyUI API 格式的 JSON 模板（`workflows/ltxv_t2v.json`，可換成任何自己的 workflow，`FINVID_COMFY_WORKFLOW=` 指向即可），程式填入 prompt / 尺寸 / 幀數 / seed 後 `POST /prompt`，輪詢 `/history`，抓回檔案轉 h264。ComfyUI 沒開時會明確報錯，不會默默退回靜態卡。帳本記 `comfyui / gpu_second` 單價 $0，dry-run 也會估 GPU 秒數，所以「$0 但每支 90 秒」和「$0.27 但 20 秒」（MiniMax）可以放在同一張表比。
+
 ## 2. 成本意識：這個流程在哪裡省錢
 
 brief 點名的三件事，對應的機制：
@@ -127,7 +154,7 @@ brief 點名的三件事，對應的機制：
 - Pass A 用便宜模型（`gpt-5-mini`）讀整份逐字稿一次，切成 5–10 段並給每段 hook 分數、有無可畫圖的數據。
 - 篩選閘是純程式：分數低於門檻、主題重複、超過 `--max-clips` 的段落都不進下一步。候選段落通常 6–10 段，只有 3 段送強模型，其餘在 `03_scripts.json` 留下跳過原因。
 - 強模型（`gpt-5`）每段一次呼叫，是流程中單價最高的地方，所以只在這裡用。
-- 生成影片不用 AI 影片 API：TTS 免費、圖表用 matplotlib、合成用 ffmpeg。帳本裡仍記一筆「若用 Runway/Kling 類 API 會花多少」當對照（3 支 35 秒約 $26）。
+- 生成影片的「貴的那一步」（AI 影片生成）只做在最值錢的地方：每支 clip 一段 5 秒開場，而且只給通過篩選 + 反抄襲閘的 clip；用本機 ComfyUI 是 $0 + 90 秒 GPU，換雲端 API 也走同一個閘與預算護欄。其餘畫面用 TTS + matplotlib + ffmpeg。帳本裡另記「若整支都用 Runway/Kling 類 API 會花多少」當對照（3 支約 $27.5）。
 
 **「是否避免同一支影片重複處理」**
 - `data/<video_id>/manifest.json` 記每個 stage 的設定 hash 與輸出檔。設定沒變、檔案還在就跳過。
@@ -162,6 +189,7 @@ brief 點名的三件事，對應的機制：
 | 寫腳本 | `gpt-5`（reasoning low） | 改寫品質直接決定合法性與可看性，值得花；只對篩過的段落用 | `gpt-4.1-mini` 便宜 5 倍，品質可接受 |
 | TTS | edge-tts `zh-TW-HsiaoChenNeural` | 免費、台灣腔、自然度夠 demo | OpenAI `gpt-4o-mini-tts` 約 $0.01/支 |
 | 圖表 | matplotlib | 題目要求可程式化，CJK 字型可控 | Plotly（要 kaleido 輸出圖片，依賴較重） |
+| AI 鏡頭 | 本機 ComfyUI + LTX-Video 2B distilled | $0、不用 key、開源權重；8 步蒸餾版在內顯上 90 秒/段可接受；ComfyUI 的 HTTP API 讓 workflow 可以整段換掉 | 雲端：MiniMax Hailuo（$0.08–0.27/段）、Kling（$0.18–0.42/段）、Veo（無免費 API）；免費雲端：Pixazo LTX、HF ZeroGPU（3.5 GPU 分鐘/天） |
 | 合成 | PIL + ffmpeg | 零依賴問題，Windows/macOS 都穩；字幕用 PNG overlay 避開 ffmpeg subtitles filter 在 Windows 的路徑地雷 | moviepy（慢、依賴多） |
 | UI | FastAPI + 單一 HTML | 不用 build、跨平台、不需部署；桌面 app 會被 Gatekeeper/防毒擋，雲端網站會曝露 key | Streamlit |
 
@@ -181,6 +209,7 @@ pipeline/
   numbers.py        數字溯源：中文/阿拉伯數字解析，圖表點必須在逐字稿出現過
   stages/           s1_download s2_transcribe s3_script s4_render
   render/           tts chart compose fonts
+  render/aivideo/   AI 開場鏡頭 provider（comfy.py + workflows/*.json）
   ui/               server.py + static/index.html
 tests/              不打 API、不需網路的單元測試
 docs/               ANALYSIS.md（設計分析）COST.md（成本假設與決策）

@@ -295,71 +295,80 @@
   "clips": [
     {
       "segment_id": 5,
-      "title": "新青安月付這樣差",
-      "hook": "一招看懂新青安真相",
+      "title": "新青安月付差多大？",
+      "hook": "月付1.5萬真的輕鬆嗎？",
       "lines": [
         {
           "text": "根據TVBS《健康2.0》報導指出",
-          "emphasis": false
+          "emphasis": false,
+          "visual": "news studio lights, subtle bokeh, city skyline night"
         },
         {
           "text": "新青安設5年寬限、最長40年期。",
-          "emphasis": false
+          "emphasis": false,
+          "visual": "mortgage contract close-up, pen on paper, desk lamp"
         },
         {
-          "text": "示範貸1000萬，前5年月付約1.5萬。",
-          "emphasis": false
+          "text": "以1000萬貸款示範現金流差異。",
+          "emphasis": false,
+          "visual": "calculator on table, notepad, home interior"
         },
         {
-          "text": "寬限後改35年本息，月付約3.6萬。",
-          "emphasis": false
+          "text": "寬限期每月約1.5萬，壓力較低。",
+          "emphasis": false,
+          "visual": "banking app screen blur, hand holding phone, couch"
         },
         {
-          "text": "若拉到40年，本息月付約3.2萬。",
-          "emphasis": false
+          "text": "寬限結束，本息35年約3.6萬。",
+          "emphasis": false,
+          "visual": "budget spreadsheet, coffee mug steam, night desk"
         },
         {
-          "text": "年限越長，眼前比較輕鬆。",
-          "emphasis": false
+          "text": "拉長到40年，本息約3.2萬。",
+          "emphasis": false,
+          "visual": "bar chart animation, teal bars, clean background"
         },
         {
-          "text": "但總利息會增加，還本只是延後。",
-          "emphasis": false
+          "text": "月付更輕，但總利息會拉高。",
+          "emphasis": false,
+          "visual": "interest rate graph, red line, minimal grid"
         },
         {
-          "text": "寬限到期才是關卡，要先算清。",
-          "emphasis": false
+          "text": "先想清楚還本後的口袋夠不夠。",
+          "emphasis": false,
+          "visual": "taipei apartment exterior, evening windows, slow tilt"
         }
       ],
       "chart": {
         "type": "bar",
-        "title": "新青安月付比較",
+        "title": "新青安示範月付比較",
         "y_label": "每月還款（元）",
         "series": [
           {
-            "name": "示例月付",
+            "name": "月付",
             "points": [
               {
                 "label": "寬限期",
                 "value": 15000.0,
-                "unit": "元"
+                "unit": "元/月"
               },
               {
-                "label": "35年本息",
+                "label": "本息35年",
                 "value": 36000.0,
-                "unit": "元"
+                "unit": "元/月"
               },
               {
-                "label": "40年本息",
+                "label": "本息40年",
                 "value": 32000.0,
-                "unit": "元"
+                "unit": "元/月"
               }
             ]
           }
         ]
       },
       "attribution": "根據TVBS《健康2.0》報導指出",
-      "est_seconds": 36.0,
+      "est_seconds": 38.0,
+      "ai_shot": "A cozy Taipei apartment living room at dusk, soft window light casting warm tones. Slow push-in toward a coffee table with a calculator, mortgage papers, and a pen. Subtle camera pan reveals a simple bar chart on a tablet. Calm, contemplative mood, no faces, clean modern decor.",
       "plagiarism_overlap": 0.0,
       "plagiarism_lcs": 3,
       "plagiarism_ok": true,
@@ -368,61 +377,60 @@
     },
     {
       "segment_id": 7,
-      "title": "安平台中單價飆",
-      "hook": "中南部房價，衝到哪裡了？",
+      "title": "安平台中價帶爆衝",
+      "hook": "中南部房價衝多高？",
       "lines": [
         {
           "text": "根據TVBS《健康2.0》報導指出",
-          "emphasis": false
+          "emphasis": false,
+          "visual": "news studio b-roll, abstract graphics, blue background"
         },
         {
-          "text": "安平新案約30到35萬/坪起跳",
-          "emphasis": false
+          "text": "安平新案單坪從30到35萬起跳。",
+          "emphasis": true,
+          "visual": "anping district streets, new condo exterior, real estate sign"
         },
         {
-          "text": "現在不少案已衝破40萬/坪",
-          "emphasis": false
+          "text": "現在已經一路攻上40萬/坪。",
+          "emphasis": false,
+          "visual": "price chart overlay, apartment facade, night city lights"
         },
         {
-          "text": "五年寬限期帶動買氣狂飆",
-          "emphasis": false
+          "text": "五年寬限期拉動買氣，掀起搶購。",
+          "emphasis": false,
+          "visual": "bank building, mortgage paperwork, fast crowd movement"
         },
         {
-          "text": "一屋多價、搶到五個斡旋",
-          "emphasis": false
+          "text": "兩房小宅最熱，常被秒掃空。",
+          "emphasis": false,
+          "visual": "compact apartment interior, floor plan, keys in hand"
         },
         {
-          "text": "兩房小宅被掃光超對年輕人",
-          "emphasis": false
+          "text": "臺中豪宅成交衝到70萬到90萬/坪。",
+          "emphasis": true,
+          "visual": "taichung skyline, luxury high-rise, sunset glow"
         },
         {
-          "text": "台中蛋黃區豪宅70到80萬/坪",
-          "emphasis": false
-        },
-        {
-          "text": "高樓層更見90萬/坪成交價",
-          "emphasis": false
-        },
-        {
-          "text": "中南部單價新高仍在發酵",
-          "emphasis": false
+          "text": "年輕族群看總價帶，速度更快。",
+          "emphasis": false,
+          "visual": "young couple silhouette, calculator on table, city night drive"
         }
       ],
       "chart": {
         "type": "bar",
-        "title": "中南部單坪價帶",
-        "y_label": "單價",
+        "title": "安平與臺中單坪價帶",
+        "y_label": "價格（萬/坪）",
         "series": [
           {
-            "name": "單坪價",
+            "name": "單坪價格",
             "points": [
               {
-                "label": "安平下限",
+                "label": "安平起跳下限",
                 "value": 30.0,
                 "unit": "萬/坪"
               },
               {
-                "label": "安平上限",
+                "label": "安平起跳上限",
                 "value": 35.0,
                 "unit": "萬/坪"
               },
@@ -432,12 +440,12 @@
                 "unit": "萬/坪"
               },
               {
-                "label": "台中豪宅",
+                "label": "臺中豪宅",
                 "value": 70.0,
                 "unit": "萬/坪"
               },
               {
-                "label": "台中高樓層",
+                "label": "臺中高價",
                 "value": 90.0,
                 "unit": "萬/坪"
               }
@@ -447,6 +455,7 @@
       },
       "attribution": "根據TVBS《健康2.0》報導指出",
       "est_seconds": 38.0,
+      "ai_shot": "Slow push-in over a twilight Taiwanese cityscape with clusters of new high-rise apartments. Subtle traffic trails on boulevards, soft warm streetlights contrasting cool blue sky. Camera glides past modern condo facades and cranes, hinting at rapid development and rising prices. No faces, no signage, clean cinematic look.",
       "plagiarism_overlap": 0.0,
       "plagiarism_lcs": 5,
       "plagiarism_ok": true,
@@ -455,45 +464,53 @@
     },
     {
       "segment_id": 8,
-      "title": "房市回檔與台北化",
-      "hook": "中南部房市吹冷風？",
+      "title": "房市回檔與負擔臺北化",
+      "hook": "中南部負擔率台北化？",
       "lines": [
         {
           "text": "根據TVBS《健康2.0》報導指出",
-          "emphasis": false
+          "emphasis": false,
+          "visual": "news studio, headline graphic"
         },
         {
-          "text": "下半年量縮，價格開始回調",
-          "emphasis": false
+          "text": "2024臺中案量約5800億。",
+          "emphasis": false,
+          "visual": "taichung cityscape, construction cranes"
         },
         {
-          "text": "臺中案量2024約5800億",
-          "emphasis": false
+          "text": "2025只剩約4100億，量縮明顯。",
+          "emphasis": false,
+          "visual": "real estate billboard, empty showroom"
         },
         {
-          "text": "2025縮到約4100多億",
-          "emphasis": false
+          "text": "交易量縮，價格每年跌3%到5%。",
+          "emphasis": false,
+          "visual": "line chart falling, red arrows"
         },
         {
-          "text": "近年每年跌幅約3%到5%",
-          "emphasis": false
+          "text": "中南部房貸負擔率多逾40%。",
+          "emphasis": false,
+          "visual": "calculator, mortgage papers"
         },
         {
-          "text": "三都房貸負擔率多在40%以上",
-          "emphasis": false
+          "text": "臺中正逼近45%，壓力上來。",
+          "emphasis": false,
+          "visual": "apartment exterior, evening lights"
         },
         {
-          "text": "臺北負擔率約60%",
-          "emphasis": false
+          "text": "臺北負擔率約60%，仍最重。",
+          "emphasis": false,
+          "visual": "taipei skyline, dense housing"
         },
         {
-          "text": "臺中正逼近45%，購屋更吃力",
-          "emphasis": false
+          "text": "量縮先行，價格落後回調。",
+          "emphasis": false,
+          "visual": "bar chart, market trend"
         }
       ],
       "chart": {
         "type": "bar",
-        "title": "臺中總案量變化：2024 vs 2025",
+        "title": "臺中總案量變化",
         "y_label": "金額（億元）",
         "series": [
           {
@@ -514,7 +531,8 @@
         ]
       },
       "attribution": "根據TVBS《健康2.0》報導指出",
-      "est_seconds": 36.0,
+      "est_seconds": 38.0,
+      "ai_shot": "Aerial slow push-in over Taichung high-rise apartments at dusk, soft golden-hour light reflecting on windows. Subtle pan to reveal construction cranes stilled above partially built towers. Cut to a clean, stylized bar chart animation on a tablet held by gloved hands, no faces visible. Moody, urban atmosphere with gentle camera motion emphasizing market cooling.",
       "plagiarism_overlap": 0.0,
       "plagiarism_lcs": 5,
       "plagiarism_ok": true,

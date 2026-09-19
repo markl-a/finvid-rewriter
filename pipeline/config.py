@@ -44,6 +44,21 @@ class Settings(BaseSettings):
     video_height: int = 1920
     font: str | None = None  # path to a TTF/TTC with Traditional Chinese glyphs (auto-detected if unset)
 
+    # step 4: AI-generated opening shot per clip. none = static card only (default, $0, seconds)
+    ai_video: str = "none"  # none | comfy
+    ai_shot_seconds: float = 5.0
+    ai_shot_width: int = 576   # 9:16, multiples of 32 for LTX
+    ai_shot_height: int = 1024
+    ai_shot_fps: int = 24
+    comfy_url: str = "http://127.0.0.1:8188"
+    comfy_workflow: str | None = None  # API-format workflow JSON; default: bundled ltxv_t2v.json
+    comfy_checkpoint: str = "ltxv-2b-0.9.8-distilled.safetensors"
+    comfy_text_encoder: str = "t5xxl_fp8_e4m3fn_scaled.safetensors"
+    comfy_steps: int = 8       # distilled model: 8 steps, cfg 1
+    comfy_cfg: float = 1.0
+    comfy_timeout_sec: float = 1800
+    comfy_est_gpu_seconds: float = 90  # dry-run estimate per shot: measured 79-107 s on a Radeon 8060S iGPU
+
     # guardrails
     max_budget_usd: float = 1.0
     max_clips: int = 3

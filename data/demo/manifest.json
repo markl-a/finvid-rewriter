@@ -2,7 +2,7 @@
   "video_id": "KjAI9r8tnOs",
   "url": "https://www.youtube.com/watch?v=KjAI9r8tnOs",
   "created": "2026-09-18T23:44:48",
-  "updated": "2026-09-19T08:05:21",
+  "updated": "2026-09-19T09:00:35",
   "stages": {
     "s1_download": {
       "config_hash": "3756799fdb581f62",
@@ -70,10 +70,10 @@
       "finished_at": "2026-09-19T00:14:37"
     },
     "s3_script": {
-      "config_hash": "f7a5dec86005f84a",
+      "config_hash": "786f0240fd4293e2",
       "config": {
         "video_id": "KjAI9r8tnOs",
-        "prompt_version": 7,
+        "prompt_version": 8,
         "llm_cheap_model": "gpt-5-mini",
         "llm_strong_model": "gpt-5",
         "hook_threshold": 3,
@@ -101,33 +101,11 @@
         {
           "stage": "s3_script",
           "provider": "openai",
-          "model": "gpt-5-mini",
-          "unit": "input_tokens",
-          "quantity": 4373.0,
-          "unit_price_usd": 2.5e-07,
-          "usd": 0.001093,
-          "estimated": false,
-          "note": "pass A"
-        },
-        {
-          "stage": "s3_script",
-          "provider": "openai",
-          "model": "gpt-5-mini",
-          "unit": "output_tokens",
-          "quantity": 2264.0,
-          "unit_price_usd": 2e-06,
-          "usd": 0.004528,
-          "estimated": false,
-          "note": "pass A"
-        },
-        {
-          "stage": "s3_script",
-          "provider": "openai",
           "model": "gpt-5",
           "unit": "input_tokens",
-          "quantity": 1477.0,
+          "quantity": 1656.0,
           "unit_price_usd": 1.25e-06,
-          "usd": 0.001846,
+          "usd": 0.00207,
           "estimated": false,
           "note": "pass B seg 5"
         },
@@ -136,9 +114,9 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "output_tokens",
-          "quantity": 1615.0,
+          "quantity": 1360.0,
           "unit_price_usd": 1e-05,
-          "usd": 0.01615,
+          "usd": 0.0136,
           "estimated": false,
           "note": "pass B seg 5"
         },
@@ -147,9 +125,9 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "input_tokens",
-          "quantity": 1422.0,
+          "quantity": 1601.0,
           "unit_price_usd": 1.25e-06,
-          "usd": 0.001778,
+          "usd": 0.002001,
           "estimated": false,
           "note": "pass B seg 7"
         },
@@ -158,9 +136,9 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "output_tokens",
-          "quantity": 1603.0,
+          "quantity": 1725.0,
           "unit_price_usd": 1e-05,
-          "usd": 0.01603,
+          "usd": 0.01725,
           "estimated": false,
           "note": "pass B seg 7"
         },
@@ -169,9 +147,9 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "input_tokens",
-          "quantity": 1419.0,
+          "quantity": 1598.0,
           "unit_price_usd": 1.25e-06,
-          "usd": 0.001774,
+          "usd": 0.001998,
           "estimated": false,
           "note": "pass B seg 8"
         },
@@ -180,38 +158,52 @@
           "provider": "openai",
           "model": "gpt-5",
           "unit": "output_tokens",
-          "quantity": 1754.0,
+          "quantity": 1488.0,
           "unit_price_usd": 1e-05,
-          "usd": 0.01754,
+          "usd": 0.01488,
           "estimated": false,
           "note": "pass B seg 8"
         }
       ],
-      "finished_at": "2026-09-19T08:04:53"
+      "finished_at": "2026-09-19T08:55:59"
     },
     "s4_render": {
-      "config_hash": "c381c30229966dc0",
+      "config_hash": "eb2f401e45c73d4e",
       "config": {
         "video_id": "KjAI9r8tnOs",
-        "render_version": 2,
+        "render_version": 3,
         "tts_provider": "edge",
         "tts_voice": "zh-TW-HsiaoChenNeural",
         "width": 1080,
         "height": 1920,
         "max_clips": 3,
-        "s3_config_hash": "f7a5dec86005f84a"
+        "ai_video": "comfy",
+        "ai_shot": {
+          "seconds": 5.0,
+          "w": 576,
+          "h": 1024,
+          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "steps": 8
+        },
+        "s3_config_hash": "786f0240fd4293e2"
       },
       "outputs": {
         "render": "04_render.json",
         "clip_5": "04_clips/clip_05.mp4",
+        "ai_5": "04_clips/ai_05.mp4",
         "clip_7": "04_clips/clip_07.mp4",
-        "clip_8": "04_clips/clip_08.mp4"
+        "ai_7": "04_clips/ai_07.mp4",
+        "clip_8": "04_clips/clip_08.mp4",
+        "ai_8": "04_clips/ai_08.mp4"
       },
       "meta": {
         "clips_rendered": 3,
-        "total_seconds": 115.5,
+        "total_seconds": 110.1,
         "tts_usd": 0.0,
-        "reference_ai_video_usd": 28.875
+        "spent_usd": 0.0,
+        "ai_video": "comfyui",
+        "ai_shot_gpu_seconds": 247.7,
+        "reference_ai_video_usd": 27.525
       },
       "costs": [
         {
@@ -219,22 +211,66 @@
           "provider": "edge",
           "model": "edge-tts",
           "unit": "characters",
-          "quantity": 138.0,
+          "quantity": 135.0,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "clip 5: 138 chars"
+          "note": "clip 5: 135 chars"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "comfyui",
+          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "unit": "gpu_second",
+          "quantity": 78.6,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "ai_05.mp4: 79s on cuda:0 AMD Radeon(TM) 8060S Graphics : native"
         },
         {
           "stage": "s4_render",
           "provider": "reference",
           "model": "ai-video-api",
           "unit": "second",
-          "quantity": 39.0,
+          "quantity": 37.6,
           "unit_price_usd": 0.25,
-          "usd": 9.75,
+          "usd": 9.4,
           "estimated": true,
           "note": "clip 5"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "edge",
+          "model": "edge-tts",
+          "unit": "characters",
+          "quantity": 116.0,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "clip 7: 116 chars"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "comfyui",
+          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "unit": "gpu_second",
+          "quantity": 84.6,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "ai_07.mp4: 85s on cuda:0 AMD Radeon(TM) 8060S Graphics : native"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "reference",
+          "model": "ai-video-api",
+          "unit": "second",
+          "quantity": 33.5,
+          "unit_price_usd": 0.25,
+          "usd": 8.375,
+          "estimated": true,
+          "note": "clip 7"
         },
         {
           "stage": "s4_render",
@@ -245,43 +281,32 @@
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "clip 7: 130 chars"
+          "note": "clip 8: 130 chars"
         },
         {
           "stage": "s4_render",
-          "provider": "reference",
-          "model": "ai-video-api",
-          "unit": "second",
-          "quantity": 40.2,
-          "unit_price_usd": 0.25,
-          "usd": 10.05,
-          "estimated": true,
-          "note": "clip 7"
-        },
-        {
-          "stage": "s4_render",
-          "provider": "edge",
-          "model": "edge-tts",
-          "unit": "characters",
-          "quantity": 114.0,
+          "provider": "comfyui",
+          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "unit": "gpu_second",
+          "quantity": 84.5,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "clip 8: 114 chars"
+          "note": "ai_08.mp4: 85s on cuda:0 AMD Radeon(TM) 8060S Graphics : native"
         },
         {
           "stage": "s4_render",
           "provider": "reference",
           "model": "ai-video-api",
           "unit": "second",
-          "quantity": 36.3,
+          "quantity": 39.0,
           "unit_price_usd": 0.25,
-          "usd": 9.075,
+          "usd": 9.75,
           "estimated": true,
           "note": "clip 8"
         }
       ],
-      "finished_at": "2026-09-19T08:05:21"
+      "finished_at": "2026-09-19T09:00:35"
     }
   },
   "runs": [
@@ -390,6 +415,20 @@
         "s2_transcribe"
       ],
       "usd": 0.060739
+    },
+    {
+      "started": 1789779293.373821,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s3_script",
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe"
+      ],
+      "usd": 0.051799
     }
   ]
 }

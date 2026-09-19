@@ -17,10 +17,11 @@ from ..models import CostEntry, RenderedClip, RenderOutput, ScriptClip, ScriptsO
 from ..pricing import ai_video_reference_cost
 from ..render import tts
 from ..render.chart import render_chart
+from ..render.aivideo import make_provider
 from ..render.compose import compose_clip
 
 STAGE = "s4_render"
-RENDER_VERSION = 2  # bump when layout/encoding changes so cached clips are re-rendered
+RENDER_VERSION = 3  # bump when layout/encoding changes so cached clips are re-rendered
 
 SCRIPTS_FILE = "03_scripts.json"
 DRY_RUN_CHARS_PER_CLIP = 200
@@ -41,8 +42,21 @@ def stage_config(ctx: RunContext) -> dict[str, Any]:
         "width": s.video_width,
         "height": s.video_height,
         "max_clips": ctx.max_clips,
+        "ai_video": s.ai_video,
+        "ai_shot": {"seconds": s.ai_shot_seconds, "w": s.ai_shot_width, "h": s.ai_shot_height,
+                    "model": s.comfy_checkpoint, "steps": s.comfy_steps} if s.ai_video != "none" else None,
         "s3_config_hash": s3.get("config_hash"),
     }
+
+
+def shot_prompt(clip: ScriptClip) -> str:
+    """Pass B writes `ai_shot` (prompt v8+). Older scripts get a neutral finance b-roll prompt so the
+    provider still runs; the title is appended as context. Never text/logos/faces (legal + LTX quirks)."""
+    base = clip.ai_shot.strip() or (
+        "Cinematic vertical b-roll for a finance news short: a modern Taiwanese city skyline with "
+        "apartment towers at dusk, slow smooth camera push-in, soft warm window lights, realistic, "
+        "high detail, no people, no text")
+    return f"{base}. Vertical 9:16 framing, no text, no captions, no logos, no watermarks."
 
 
 # ----------------------------------------------------------------------------- helpers
@@ -80,6 +94,13 @@ def execute(ctx: RunContext) -> StageResult:
                  ai_video_reference_cost(secs, note=f"{len(clips) or ctx.max_clips} clips x ~{secs / max(len(clips) or ctx.max_clips, 1):.0f}s")]
         ctx.log(f"[{STAGE}] dry-run: TTS ~${costs[0].usd:.4f} for {chars} chars; "
                 f"an AI video API would be ~${costs[1].usd:.2f} for the same {secs:.0f}s - not called")
+        provider = make_provider(s)
+        if provider is not None:
+            n = len(clips) or ctx.max_clips
+            est = provider.estimate(n, s.ai_shot_seconds)
+            costs.extend(est)
+            ctx.log(f"[{STAGE}] dry-run: {n} AI opening shot(s) x {s.ai_shot_seconds:.0f}s via {provider.name}/"
+                    f"{provider.model}: ${sum(c.usd for c in est):.4f}, ~{sum(c.quantity for c in est):.0f} {est[0].unit}s")
         return StageResult(outputs={}, costs=costs,
                            meta={"clips_planned": len(clips) or ctx.max_clips, "chars": chars, "est_seconds": secs,
                                  "reference_ai_video_usd": costs[1].usd})
@@ -90,10 +111,15 @@ def execute(ctx: RunContext) -> StageResult:
             f"{s.video_width}x{s.video_height}")
     clips_dir = ctx.path(CLIPS_DIR)
     clips_dir.mkdir(parents=True, exist_ok=True)
+    provider = make_provider(s)  # None unless FINVID_AI_VIDEO is set
+    if provider is not None:
+        ctx.log(f"[{STAGE}] AI opening shot per clip via {provider.name}/{provider.model} "
+                f"({s.ai_shot_width}x{s.ai_shot_height}, {s.ai_shot_seconds:.0f}s)")
     costs: list[CostEntry] = []
     rendered: list[RenderedClip] = []
     outputs: dict[str, str] = {}
-    committed = 0.0
+    committed = 0.0  # everything actually spent in this stage (TTS + AI shots)
+    tts_total = 0.0
     total_seconds = 0.0
     reference_total = 0.0
 
@@ -107,14 +133,30 @@ def execute(ctx: RunContext) -> StageResult:
         texts = [clip.hook] + [ln.text for ln in clip.lines]
         line_audio = tts.synthesize_lines(s, texts, clips_dir, stem)
         committed += cost.usd
+        tts_total += cost.usd
         costs.append(cost)
 
         chart_png: Path | None = None
         if clip.chart is not None:
             chart_png = render_chart(clip.chart, clips_dir / f"chart_{sid:02d}.png")
 
+        shot_path: Path | None = None
+        shot_secs = 0.0
+        if provider is not None:
+            # same gate as everything else: only selected, plagiarism-clean clips get a shot,
+            # one per clip, pre-flight charged (free providers charge $0), cached by prompt hash
+            est = provider.estimate(1, s.ai_shot_seconds)
+            ctx.charge(committed + sum(c.usd for c in est), f"AI shot for clip {sid}")
+            shot = provider.generate(shot_prompt(clip), clips_dir / f"ai_{sid:02d}.mp4",
+                                     seconds=s.ai_shot_seconds, seed=sid, log=ctx.log)
+            costs.extend(shot.costs)
+            committed += sum(c.usd for c in shot.costs)
+            shot_path, shot_secs = shot.path, shot.wall_seconds
+            ctx.log(f"[{STAGE}] clip {sid}: AI shot {'cache hit' if shot.cached else f'{shot.wall_seconds:.0f}s'} "
+                    f"-> {shot.path.name}")
+
         mp4 = clips_dir / f"{stem}.mp4"
-        duration = compose_clip(s, clip, line_audio, chart_png, mp4, scripts.source_name)
+        duration = compose_clip(s, clip, line_audio, chart_png, mp4, scripts.source_name, intro_video=shot_path)
         for _, p, _ in line_audio:  # per-line mp3s were only needed for timing
             p.unlink(missing_ok=True)
 
@@ -124,8 +166,13 @@ def execute(ctx: RunContext) -> StageResult:
         reference_total += ref.usd
         rendered.append(RenderedClip(segment_id=sid, title=clip.title, video_path=_rel(ctx, mp4),
                                      duration_sec=round(duration, 2),
-                                     chart_path=_rel(ctx, chart_png) if chart_png else None))
+                                     chart_path=_rel(ctx, chart_png) if chart_png else None,
+                                     ai_shot_path=_rel(ctx, shot_path) if shot_path else None,
+                                     ai_shot_provider=provider.name if provider else None,
+                                     ai_shot_seconds=round(shot_secs, 1)))
         outputs[f"clip_{sid}"] = _rel(ctx, mp4)
+        if shot_path:
+            outputs[f"ai_{sid}"] = _rel(ctx, shot_path)
         ctx.log(f"[{STAGE}] clip {sid} '{clip.title}': {duration:.1f}s, {len(texts)} lines, "
                 f"{'chart' if chart_png else 'no chart'}, TTS ${cost.usd:.4f} "
                 f"| running: spent ${committed:.4f} vs AI-video-API ~${reference_total:.2f}")
@@ -138,5 +185,8 @@ def execute(ctx: RunContext) -> StageResult:
             f"actual ${committed:.4f} vs ~${reference_total:.2f} with an AI video API")
     return StageResult(outputs=outputs, costs=costs,
                        meta={"clips_rendered": len(rendered), "total_seconds": round(total_seconds, 1),
-                             "tts_usd": round(committed, 6),
+                             "tts_usd": round(tts_total, 6),
+                             "spent_usd": round(committed, 6),
+                             "ai_video": provider.name if provider else "none",
+                             "ai_shot_gpu_seconds": round(sum(c.ai_shot_seconds for c in rendered), 1),
                              "reference_ai_video_usd": round(reference_total, 4)})

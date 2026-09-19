@@ -1,0 +1,9 @@
+{
+  "key": "9d5b2de90e2a54b3",
+  "prompt": "Aerial slow push-in over Taichung high-rise apartments at dusk, soft golden-hour light reflecting on windows. Subtle pan to reveal construction cranes stilled above partially built towers. Cut to a clean, stylized bar chart animation on a tablet held by gloved hands, no faces visible. Moody, urban atmosphere with gentle camera motion emphasizing market cooling.. Vertical 9:16 framing, no text, no captions, no logos, no watermarks.",
+  "seconds": 5.0,
+  "seed": 8,
+  "wall_seconds": 84.5,
+  "device": "cuda:0 AMD Radeon(TM) 8060S Graphics : native",
+  "workflow": "ltxv_t2v.json"
+}

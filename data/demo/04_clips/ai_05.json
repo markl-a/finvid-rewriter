@@ -1,0 +1,9 @@
+{
+  "key": "de059fa568ebd497",
+  "prompt": "A cozy Taipei apartment living room at dusk, soft window light casting warm tones. Slow push-in toward a coffee table with a calculator, mortgage papers, and a pen. Subtle camera pan reveals a simple bar chart on a tablet. Calm, contemplative mood, no faces, clean modern decor.. Vertical 9:16 framing, no text, no captions, no logos, no watermarks.",
+  "seconds": 5.0,
+  "seed": 5,
+  "wall_seconds": 78.6,
+  "device": "cuda:0 AMD Radeon(TM) 8060S Graphics : native",
+  "workflow": "ltxv_t2v.json"
+}

@@ -87,6 +87,7 @@ class ChartSpec(BaseModel):
 class ScriptLine(BaseModel):
     text: str
     emphasis: bool = False
+    visual: str = ""  # 2-4 English stock-footage keywords for this line (b-roll lookup, optional)
 
 
 class ScriptClip(BaseModel):
@@ -98,6 +99,8 @@ class ScriptClip(BaseModel):
     chart: ChartSpec | None = None
     attribution: str
     est_seconds: float = 30
+    # English prompt for the AI-generated opening shot (step 4, optional); no text/faces/logos
+    ai_shot: str = ""
     # filled by plagiarism check
     plagiarism_overlap: float = 0.0
     plagiarism_lcs: int = 0
@@ -127,6 +130,9 @@ class RenderedClip(BaseModel):
     video_path: str
     duration_sec: float
     chart_path: str | None = None
+    ai_shot_path: str | None = None      # generated opening shot, if FINVID_AI_VIDEO != none
+    ai_shot_provider: str | None = None
+    ai_shot_seconds: float = 0.0         # wall/GPU seconds it took (0 on cache hit)
 
 
 class RenderOutput(BaseModel):

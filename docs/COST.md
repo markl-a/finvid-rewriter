@@ -15,6 +15,7 @@
 | LLM 替代 | `gpt-4.1-mini` | $0.40 / $1.60 | Pass B 省 5 倍 |
 | TTS | edge-tts | $0 | 預設 |
 | TTS | `gpt-4o-mini-tts` | $0.60 / 1M 字元 + 音訊 token ≈ $0.00005/字 | 可選 |
+| AI 開場鏡頭（本機） | ComfyUI + LTX-Video 2B distilled | $0，每段 5 秒約 80–110 秒 GPU（Radeon 8060S 內顯） | `FINVID_AI_VIDEO=comfy`；帳本記 gpu_second |
 | AI 影片 API（對照用） | Runway / Kling / Veo 類 | ≈ $0.25 / 秒 | 流程不會呼叫，只算對照 |
 
 ## 2. 本片一次完整執行的估算與實際
@@ -29,8 +30,9 @@
 | s2 STT `gpt-4o-mini-transcribe` | 15.81 分鐘，2 個分段 | $0.0474 |
 | s3 Pass A `gpt-5-mini` | 4,354 in / 3,271 out（含推理 token） | $0.0076 |
 | s3 Pass B `gpt-5` × 3 | 每段約 1,230 in / 1,620 out（含推理 token） | $0.0533 |
-| s4 TTS edge-tts | 406 字元 | $0 |
-| **合計** | | **$0.108** |
+| s4 TTS edge-tts | 381 字元 | $0 |
+| s4 AI 開場鏡頭 ComfyUI/LTX-Video | 3 段 × 5 秒，共 248 秒 GPU | $0 |
+| **合計** | | **$0.099**（最新一次 Pass A 命中快取，只付 Pass B $0.052） |
 
 估算 vs 實際的落差：第一版 dry-run 估 $0.083，主要低估了 gpt-5 系列的推理 token 會計入輸出。
 已把估算常數校準到實測值（`PASS_A_OUTPUT_TOKENS`、`PASS_B_OUTPUT_TOKENS`），現在 dry-run 估 $0.107。
@@ -86,10 +88,11 @@
 - 15% 重疊 + 最長 12 字：實測改寫良好的腳本落在 3–8%，照抄的超過 50%。
 - 超標退回一次就停：第二次還抄代表模型對這段做不到，繼續重試是浪費。
 
-### 為什麼影片生成不用 AI 影片 API
-- 財經數據型內容的價值在數字與圖表，AI 生成畫面沒有附加價值，卻是全流程最貴的一步（一支 ≈ $9）。
-- 程式化合成：TTS 免費、圖表 matplotlib、字幕 PIL、合成 ffmpeg，$0 且完全可控，也天然符合「圖表自製」要求。
-- 帳本仍記一筆 reference 費用，讓對照可見。
+### 影片生成：只生成開場 5 秒，而且用本機
+- brief 說「生成短影音通常是最貴的一步」——整支 40 秒用雲端 API 是每支 $2–10。財經數據型內容的價值在數字與圖表，AI 畫面的價值集中在開場能不能讓人停下滑動，所以只對每支 clip 生成 5 秒開場，其餘用 TTS + matplotlib + PIL + ffmpeg（$0、完全可控、天然符合「圖表自製」）。
+- 生成的閘門跟寫腳本一樣：只給通過篩選與反抄襲閘的 clip、每支一段、預算閘、依 (provider, model, workflow, prompt) hash 快取。
+- 預設 provider 是本機 ComfyUI + 開源 LTX-Video：$0、不用 key，代價是每段 80–110 秒 GPU。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
+- 帳本仍記一筆「整支都用 AI 影片 API」的 reference 費用（3 支約 $27.5），讓省下的量可見。
 
 ### 冪等快取的粒度
 - 以 stage 為單位，key = 影響輸出的設定 hash。改 Pass B 的模型只重做 s3、s4，不重做 STT。
