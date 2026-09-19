@@ -10,10 +10,10 @@
 | 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
 | 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
 | 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.061（8 段候選，3 段寫腳本，省下 5 次強模型呼叫） |
-| 4 `s4_render` | **AI 生成的畫面鋪滿整支**（本機 ComfyUI + LTX-Video，每支 2 段 5 秒鏡頭 ping-pong 迴圈）+ 圖表卡疊在畫面上 + 免費 TTS + ffmpeg 合成字幕 | ComfyUI (LTX-Video 2B) + edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；6 段 AI 鏡頭共 534 秒 GPU） |
+| 4 `s4_render` | **AI 生成的開場鏡頭 + 每句一段真實素材**鋪滿整支，圖表卡疊在畫面上，免費 TTS + ffmpeg 合成字幕 | AI：HF ZeroGPU → Pixazo → 本機 ComfyUI（同一個 LTX-Video 模型，免費備援鏈）；素材：Pexels；edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭、23 次 Pexels 搜尋） |
 | | | **合計** | **$0.099** |
 
-對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
+對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5；換成付費的 MiniMax 只做開場鏡頭是 $0.81（3 × $0.27），流程支援但預設不用。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
 數字來自 [data/demo/manifest.json](data/demo/manifest.json)，clone 下來不用 key 就能用 `finvid costs --url demo` 重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
 
 ---

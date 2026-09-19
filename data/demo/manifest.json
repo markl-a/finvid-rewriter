@@ -2,7 +2,7 @@
   "video_id": "KjAI9r8tnOs",
   "url": "https://www.youtube.com/watch?v=KjAI9r8tnOs",
   "created": "2026-09-18T23:44:48",
-  "updated": "2026-09-19T09:23:34",
+  "updated": "2026-09-19T09:57:15",
   "stages": {
     "s1_download": {
       "config_hash": "3756799fdb581f62",
@@ -168,7 +168,7 @@
       "finished_at": "2026-09-19T08:55:59"
     },
     "s4_render": {
-      "config_hash": "e6c22b06b7ea6bd5",
+      "config_hash": "95362144a8ee4e69",
       "config": {
         "video_id": "KjAI9r8tnOs",
         "render_version": 4,
@@ -177,14 +177,21 @@
         "width": 1080,
         "height": 1920,
         "max_clips": 3,
-        "ai_video": "comfy",
+        "ai_video": "hf,pixazo,comfy",
         "ai_shot": {
           "seconds": 5.0,
           "w": 576,
           "h": 1024,
           "per_clip": 2,
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
-          "steps": 8
+          "hf_space": "Lightricks/ltx-video-distilled",
+          "comfy": {
+            "model": "ltxv-2b-0.9.8-distilled.safetensors",
+            "steps": 8
+          }
+        },
+        "broll": {
+          "source": "pexels",
+          "max_clip_seconds": 8.0
         },
         "s3_config_hash": "786f0240fd4293e2"
       },
@@ -192,21 +199,20 @@
         "render": "04_render.json",
         "clip_5": "04_clips/clip_05.mp4",
         "ai_5_0": "04_clips/ai_05.mp4",
-        "ai_5_1": "04_clips/ai_05_1.mp4",
         "clip_7": "04_clips/clip_07.mp4",
         "ai_7_0": "04_clips/ai_07.mp4",
-        "ai_7_1": "04_clips/ai_07_1.mp4",
         "clip_8": "04_clips/clip_08.mp4",
-        "ai_8_0": "04_clips/ai_08.mp4",
-        "ai_8_1": "04_clips/ai_08_1.mp4"
+        "ai_8_0": "04_clips/ai_08.mp4"
       },
       "meta": {
         "clips_rendered": 3,
         "total_seconds": 110.1,
         "tts_usd": 0.0,
         "spent_usd": 0.0,
-        "ai_video": "comfyui",
-        "ai_shot_gpu_seconds": 0.0,
+        "ai_video": "hf-zerogpu",
+        "ai_shot_gpu_seconds": 39.2,
+        "broll": "pexels",
+        "broll_requests": 0,
         "reference_ai_video_usd": 27.525
       },
       "costs": [
@@ -223,25 +229,14 @@
         },
         {
           "stage": "s4_render",
-          "provider": "comfyui",
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "provider": "hf-zerogpu",
+          "model": "Lightricks/ltx-video-distilled",
           "unit": "gpu_second",
           "quantity": 0.0,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
           "note": "ai_05.mp4: cache hit"
-        },
-        {
-          "stage": "s4_render",
-          "provider": "comfyui",
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
-          "unit": "gpu_second",
-          "quantity": 0.0,
-          "unit_price_usd": 0.0,
-          "usd": 0.0,
-          "estimated": false,
-          "note": "ai_05_1.mp4: cache hit"
         },
         {
           "stage": "s4_render",
@@ -267,25 +262,14 @@
         },
         {
           "stage": "s4_render",
-          "provider": "comfyui",
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "provider": "hf-zerogpu",
+          "model": "Lightricks/ltx-video-distilled",
           "unit": "gpu_second",
-          "quantity": 0.0,
+          "quantity": 21.4,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "ai_07.mp4: cache hit"
-        },
-        {
-          "stage": "s4_render",
-          "provider": "comfyui",
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
-          "unit": "gpu_second",
-          "quantity": 0.0,
-          "unit_price_usd": 0.0,
-          "usd": 0.0,
-          "estimated": false,
-          "note": "ai_07_1.mp4: cache hit"
+          "note": "ai_07.mp4: 21s on Lightricks/ltx-video-distilled"
         },
         {
           "stage": "s4_render",
@@ -311,25 +295,14 @@
         },
         {
           "stage": "s4_render",
-          "provider": "comfyui",
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
+          "provider": "hf-zerogpu",
+          "model": "Lightricks/ltx-video-distilled",
           "unit": "gpu_second",
-          "quantity": 0.0,
+          "quantity": 17.8,
           "unit_price_usd": 0.0,
           "usd": 0.0,
           "estimated": false,
-          "note": "ai_08.mp4: cache hit"
-        },
-        {
-          "stage": "s4_render",
-          "provider": "comfyui",
-          "model": "ltxv-2b-0.9.8-distilled.safetensors",
-          "unit": "gpu_second",
-          "quantity": 0.0,
-          "unit_price_usd": 0.0,
-          "usd": 0.0,
-          "estimated": false,
-          "note": "ai_08_1.mp4: cache hit"
+          "note": "ai_08.mp4: 18s on Lightricks/ltx-video-distilled"
         },
         {
           "stage": "s4_render",
@@ -341,9 +314,20 @@
           "usd": 9.75,
           "estimated": true,
           "note": "clip 8"
+        },
+        {
+          "stage": "s4_render",
+          "provider": "pexels",
+          "model": "videos/search",
+          "unit": "request",
+          "quantity": 0.0,
+          "unit_price_usd": 0.0,
+          "usd": 0.0,
+          "estimated": false,
+          "note": "0 search(es), 0 download(s)"
         }
       ],
-      "finished_at": "2026-09-19T09:23:34"
+      "finished_at": "2026-09-19T09:57:15"
     }
   },
   "runs": [
@@ -483,6 +467,84 @@
     },
     {
       "started": 1789780980.6148348,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789781501.9696767,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789781538.1441693,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789781570.024684,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789781658.9497008,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789782560.2110362,
+      "dry_run": false,
+      "force": false,
+      "stages_run": [
+        "s4_render"
+      ],
+      "stages_cached": [
+        "s1_download",
+        "s2_transcribe",
+        "s3_script"
+      ],
+      "usd": 0.0
+    },
+    {
+      "started": 1789782910.6943984,
       "dry_run": false,
       "force": false,
       "stages_run": [

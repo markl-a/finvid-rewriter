@@ -25,6 +25,8 @@ STAGE = "s4_render"
 API_URL = "https://api.pexels.com"
 CACHE_DIRNAME = "_broll"
 DEFAULT_QUERY = "taiwan city apartment buildings"  # when a line has no `visual` keywords
+MIN_SHORT_SIDE = 1080  # smallest rendition that still fills a 1080-wide frame
+MAX_SOURCE_SECONDS = 30  # prefer sources at most this long (download size), longer ones are a fallback
 MAX_HEIGHT = 1920  # 4K renditions cost download time for nothing: compose scales to 1080x1920
 KEY_HINT = "PEXELS_API_KEY not set - free key at https://www.pexels.com/api/"
 RATE_HINT = "Pexels free tier allows 200 requests/hour (20,000/month)"
@@ -104,15 +106,18 @@ class PexelsBroll:
 
     @staticmethod
     def pick(video: dict) -> dict | None:
-        """The mp4 rendition to download: portrait first, then the largest not above 1920 px tall
-        (landscape is acceptable - compose scales-and-crops to the frame)."""
+        """The mp4 rendition to download: portrait first (landscape is acceptable - compose
+        scales-and-crops to the frame), then the SMALLEST rendition whose short side is still
+        >= 1080 px; we only keep 8 s of it, so a 4K master (100+ MB) is wasted bandwidth."""
         files = [f for f in video.get("video_files", []) if f.get("file_type") == "video/mp4" and f.get("link")]
         if not files:
             return None
         portrait = [f for f in files if (f.get("height") or 0) > (f.get("width") or 0)]
         pool = portrait or files
-        fit = [f for f in pool if (f.get("height") or 0) <= MAX_HEIGHT] or pool
-        return max(fit, key=lambda f: ((f.get("height") or 0), (f.get("width") or 0)))
+        short = lambda f: min(f.get("width") or 0, f.get("height") or 0)  # noqa: E731
+        pixels = lambda f: (f.get("width") or 0) * (f.get("height") or 0)  # noqa: E731
+        enough = [f for f in pool if short(f) >= MIN_SHORT_SIDE]
+        return min(enough, key=pixels) if enough else max(pool, key=pixels)
 
     def download(self, video_id: int, link: str, log) -> Path:
         out = self.cache_dir / f"{video_id}.mp4"
@@ -145,7 +150,8 @@ class PexelsBroll:
         """One trimmed clip for `query` (a line's `visual` keywords), or None when Pexels has nothing.
         Never raises on empty results: the caller reuses the previous scene's clip instead."""
         query = " ".join((query or "").split()) or DEFAULT_QUERY
-        for video in self.search(query):
+        # shorter source videos first: we trim to a few seconds anyway, and a 60 s master is 10x the download
+        for video in sorted(self.search(query), key=lambda v: (v.get("duration") or 0) > MAX_SOURCE_SECONDS):
             f = self.pick(video)
             if f is None:
                 continue

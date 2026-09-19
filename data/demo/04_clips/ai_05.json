@@ -1,9 +1,11 @@
 {
-  "key": "c8b13a5371c7dc48",
+  "key": "8272a63003f4894a",
+  "provider": "hf-zerogpu",
+  "model": "Lightricks/ltx-video-distilled",
   "prompt": "A cozy Taipei apartment living room at dusk, soft window light casting warm tones. Slow push-in toward a coffee table with a calculator, mortgage papers, and a pen. Subtle camera pan reveals a simple bar chart on a tablet. Calm, contemplative mood, no faces, clean modern decor. Vertical 9:16 framing, no text, no captions, no logos, no watermarks, no readable faces.",
   "seconds": 5.0,
   "seed": 50,
-  "wall_seconds": 120.9,
-  "device": "cuda:0 AMD Radeon(TM) 8060S Graphics : native",
-  "workflow": "ltxv_t2v.json"
+  "wall_seconds": 20.6,
+  "space": "Lightricks/ltx-video-distilled",
+  "returned_seed": 50
 }

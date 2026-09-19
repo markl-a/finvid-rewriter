@@ -1,9 +1,0 @@
-{
-  "key": "9923d4939b0465da",
-  "prompt": "Cinematic vertical b-roll: news studio b-roll, abstract graphics, blue background. Slow smooth camera movement, soft natural light, realistic, high detail, shallow depth of field. Vertical 9:16 framing, no text, no captions, no logos, no watermarks, no readable faces.",
-  "seconds": 5.0,
-  "seed": 71,
-  "wall_seconds": 80.7,
-  "device": "cuda:0 AMD Radeon(TM) 8060S Graphics : native",
-  "workflow": "ltxv_t2v.json"
-}

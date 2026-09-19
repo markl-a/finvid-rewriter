@@ -9,11 +9,22 @@
       "chart_path": "04_clips/chart_05.png",
       "ai_shot_path": "04_clips/ai_05.mp4",
       "ai_shot_paths": [
-        "04_clips/ai_05.mp4",
-        "04_clips/ai_05_1.mp4"
+        "04_clips/ai_05.mp4"
       ],
-      "ai_shot_provider": "comfyui",
-      "ai_shot_seconds": 0.0
+      "ai_shot_provider": "hf-zerogpu",
+      "ai_shot_seconds": 0.0,
+      "ai_shot_usd": 0.0,
+      "broll_paths": [
+        "../_broll/10685158_8s.mp4",
+        "../_broll/7841594_8s.mp4",
+        "../_broll/31485697_8s.mp4",
+        "../_broll/6898096_8s.mp4",
+        "../_broll/34583554_8s.mp4",
+        "../_broll/5839005_8s.mp4",
+        "../_broll/32073329_8s.mp4",
+        "../_broll/6016323_8s.mp4"
+      ],
+      "broll_provider": "pexels"
     },
     {
       "segment_id": 7,
@@ -23,11 +34,21 @@
       "chart_path": "04_clips/chart_07.png",
       "ai_shot_path": "04_clips/ai_07.mp4",
       "ai_shot_paths": [
-        "04_clips/ai_07.mp4",
-        "04_clips/ai_07_1.mp4"
+        "04_clips/ai_07.mp4"
       ],
-      "ai_shot_provider": "comfyui",
-      "ai_shot_seconds": 0.0
+      "ai_shot_provider": "hf-zerogpu",
+      "ai_shot_seconds": 21.4,
+      "ai_shot_usd": 0.0,
+      "broll_paths": [
+        "../_broll/15283163_8s.mp4",
+        "../_broll/34641787_8s.mp4",
+        "../_broll/6016323_8s.mp4",
+        "../_broll/5651586_8s.mp4",
+        "../_broll/7817154_8s.mp4",
+        "../_broll/35677402_8s.mp4",
+        "../_broll/6964003_8s.mp4"
+      ],
+      "broll_provider": "pexels"
     },
     {
       "segment_id": 8,
@@ -37,11 +58,22 @@
       "chart_path": "04_clips/chart_08.png",
       "ai_shot_path": "04_clips/ai_08.mp4",
       "ai_shot_paths": [
-        "04_clips/ai_08.mp4",
-        "04_clips/ai_08_1.mp4"
+        "04_clips/ai_08.mp4"
       ],
-      "ai_shot_provider": "comfyui",
-      "ai_shot_seconds": 0.0
+      "ai_shot_provider": "hf-zerogpu",
+      "ai_shot_seconds": 17.8,
+      "ai_shot_usd": 0.0,
+      "broll_paths": [
+        "../_broll/15440319_8s.mp4",
+        "../_broll/30358186_8s.mp4",
+        "../_broll/7817217_8s.mp4",
+        "../_broll/38455331_8s.mp4",
+        "../_broll/7247826_8s.mp4",
+        "../_broll/6016323_8s.mp4",
+        "../_broll/10383216_8s.mp4",
+        "../_broll/38860079_8s.mp4"
+      ],
+      "broll_provider": "pexels"
     }
   ]
 }
