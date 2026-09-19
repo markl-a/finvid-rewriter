@@ -3,30 +3,7 @@
 把一支 YouTube 財經節目（[TVBS《健康2.0》房市精華版](https://www.youtube.com/watch?v=KjAI9r8tnOs)，15 分 50 秒）
 自動轉成數支 30–45 秒、直式、**用自己的話改寫並註明出處**的短影音。
 
-四個步驟都在 `pipeline/stages/`，每一步都先估算、再判斷要不要送、送過就不重送：
-
-| 步驟 | 做什麼 | 工具 | 本片實際花費（帳本） |
-|---|---|---|---|
-| 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
-| 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
-| 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 → 數字溯源閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.052（Pass B 3 段；Pass A 命中快取，首次另 $0.006。8 段候選只寫 3 段，省下 5 次強模型呼叫） |
-| 4 `s4_render` | **AI 生成的開場鏡頭 + 每句一段真實素材**鋪滿整支，圖表卡疊在畫面上，免費 TTS + ffmpeg 合成字幕 | AI：HF ZeroGPU → Pixazo → 本機 ComfyUI（同一個 LTX-Video 模型，免費備援鏈）；素材：Pexels；edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭共 39 秒、23 段 Pexels 素材——首次 23 次搜尋，之後全部快取 0 次） |
-| | | **合計** | **$0.099** |
-
-對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5；換成付費的 MiniMax 只做開場鏡頭是 $0.81（3 × $0.27），流程支援但預設不用。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
-數字來自 [data/demo/manifest.json](data/demo/manifest.json)，clone 下來不用 key 就能用 `finvid costs --url demo` 重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
-
-### brief 的三個評分點，本片實際省了多少
-
-| brief 問的 | 機制 | 本片的數字（帳本） |
-|---|---|---|
-| **STT 前是否對長影音做前處理，而非整支直接送** | 只拉音軌不拉影片（15 MB，不是幾百 MB）→ 16 kHz 單聲道 → ffmpeg 去靜音 → 600 秒分段、每段送前過預算閘；可選 `FINVID_SPEEDUP` / 裁頭尾 | 去靜音**只省 0.2%**（950 → 948 秒）：本片全程有音樂床，沒有真靜音，[誠實寫在第 2 節](#2-成本意識這個流程在哪裡省錢)。加速 1.2× 可省 17%，預設關（會增加錯字） |
-| **拆腳本、生成影片這些貴的步驟，是否先篩選再送** | 便宜模型 `gpt-5-mini` 讀一次全文打分 → 純程式閘（門檻／去重／上限）→ 只有選中的段落才送 `gpt-5` 寫腳本 → 只有通過反抄襲＋數字溯源的腳本才生成影片，每支固定 1 段 AI 鏡頭；付費 provider 走 `FINVID_MAX_BUDGET_USD` | 8 段候選只寫 3 段，省 5 次強模型呼叫 **≈ $0.088**（Pass B 實付 $0.052）；影片生成只做 3 段 5 秒開場而非 8 段整支：**$0 vs 整支 AI 生成 $27.5**（付費 MiniMax 只做開場也才 $0.81） |
-| **是否避免同一支影片重複處理、重複計費** | 五層快取：stage 設定 hash（manifest）→ Pass A 回覆 → 每段 AI 鏡頭的 prompt hash → Pexels 搜尋與下載 → 跨程序 `.running.lock`；上游設定變了才讓下游失效 | 第二次 `finvid run`：**$0、0 次 API 呼叫**。整個開發過程重跑 17 次（提示詞改 8 版、版面改 8 版）累計 **$0.385**，沒有快取會是 17 × $0.11 ≈ **$1.9** |
-
----
-
-## 1. 在本機跑起來
+## 1. 安裝與使用
 
 ### 最快的方式：一鍵啟動
 
@@ -215,7 +192,34 @@ FINVID_BROLL=pexels finvid run                       # PowerShell: $env:FINVID_B
 FINVID_BROLL=pexels FINVID_AI_VIDEO=hf finvid run    # hook 用 AI 鏡頭，其餘全部實拍素材
 ```
 
-## 2. 成本意識：這個流程在哪裡省錢
+---
+
+## 2. 流程與成本一覽
+
+四個步驟都在 `pipeline/stages/`，每一步都先估算、再判斷要不要送、送過就不重送：
+
+| 步驟 | 做什麼 | 工具 | 本片實際花費（帳本） |
+|---|---|---|---|
+| 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
+| 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
+| 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 → 數字溯源閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.052（Pass B 3 段；Pass A 命中快取，首次另 $0.006。8 段候選只寫 3 段，省下 5 次強模型呼叫） |
+| 4 `s4_render` | **AI 生成的開場鏡頭 + 每句一段真實素材**鋪滿整支，圖表卡疊在畫面上，免費 TTS + ffmpeg 合成字幕 | AI：HF ZeroGPU → Pixazo → 本機 ComfyUI（同一個 LTX-Video 模型，免費備援鏈）；素材：Pexels；edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭共 39 秒、23 段 Pexels 素材——首次 23 次搜尋，之後全部快取 0 次） |
+| | | **合計** | **$0.099** |
+
+對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5；換成付費的 MiniMax 只做開場鏡頭是 $0.81（3 × $0.27），流程支援但預設不用。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
+數字來自 [data/demo/manifest.json](data/demo/manifest.json)，clone 下來不用 key 就能用 `finvid costs --url demo` 重印。詳細成本假設與決策見 [docs/COST.md](docs/COST.md)，設計分析見 [docs/ANALYSIS.md](docs/ANALYSIS.md)。
+
+### brief 的三個評分點，本片實際省了多少
+
+| brief 問的 | 機制 | 本片的數字（帳本） |
+|---|---|---|
+| **STT 前是否對長影音做前處理，而非整支直接送** | 只拉音軌不拉影片（15 MB，不是幾百 MB）→ 16 kHz 單聲道 → ffmpeg 去靜音 → 600 秒分段、每段送前過預算閘；可選 `FINVID_SPEEDUP` / 裁頭尾 | 去靜音**只省 0.2%**（950 → 948 秒）：本片全程有音樂床，沒有真靜音，[誠實寫在第 3 節](#3-成本意識這個流程在哪裡省錢)。加速 1.2× 可省 17%，預設關（會增加錯字） |
+| **拆腳本、生成影片這些貴的步驟，是否先篩選再送** | 便宜模型 `gpt-5-mini` 讀一次全文打分 → 純程式閘（門檻／去重／上限）→ 只有選中的段落才送 `gpt-5` 寫腳本 → 只有通過反抄襲＋數字溯源的腳本才生成影片，每支固定 1 段 AI 鏡頭；付費 provider 走 `FINVID_MAX_BUDGET_USD` | 8 段候選只寫 3 段，省 5 次強模型呼叫 **≈ $0.088**（Pass B 實付 $0.052）；影片生成只做 3 段 5 秒開場而非 8 段整支：**$0 vs 整支 AI 生成 $27.5**（付費 MiniMax 只做開場也才 $0.81） |
+| **是否避免同一支影片重複處理、重複計費** | 五層快取：stage 設定 hash（manifest）→ Pass A 回覆 → 每段 AI 鏡頭的 prompt hash → Pexels 搜尋與下載 → 跨程序 `.running.lock`；上游設定變了才讓下游失效 | 第二次 `finvid run`：**$0、0 次 API 呼叫**。整個開發過程重跑 17 次（提示詞改 8 版、版面改 8 版）累計 **$0.385**，沒有快取會是 17 × $0.11 ≈ **$1.9** |
+
+---
+
+## 3. 成本意識：這個流程在哪裡省錢
 
 brief 點名的三件事，對應的機制：
 
@@ -244,7 +248,7 @@ brief 點名的三件事，對應的機制：
 
 ---
 
-## 3. 版權與合法改寫
+## 4. 版權與合法改寫
 
 - **改寫非照抄**：Pass B 的提示詞明確要求重組句構、換用詞、數字不變。之後用程式檢查：腳本的 6 字元 n-gram 有多少比例出現在原逐字稿（門檻 15%）、最長共同子字串（門檻 12 字）。超標退回重寫一次，仍超標就丟到 `rejected_clips`，不進生成。
 - **圖表自製**：腳本只帶數據（`chart.series[].points`），圖表由 matplotlib 從數據畫，不碰原影片任何畫面。
@@ -254,7 +258,7 @@ brief 點名的三件事，對應的機制：
 
 ---
 
-## 4. 選型理由
+## 5. 選型理由
 
 | 步驟 | 選擇 | 為什麼 | 替代 |
 |---|---|---|---|
@@ -271,7 +275,7 @@ brief 點名的三件事，對應的機制：
 
 ---
 
-## 5. 專案結構
+## 6. 專案結構
 
 ```
 pipeline/
@@ -299,7 +303,7 @@ data/<video_id>/    產出與 manifest（gitignore；repo 內保留一份 demo �
 
 ---
 
-## 6. 已知限制
+## 7. 已知限制
 
 - YouTube 偶爾擋 yt-dlp。失敗時先 `pip install -U yt-dlp`；仍不行可把音檔手動放到 `data/<video_id>/01_audio.wav`。
 - `gpt-4o-mini-transcribe` 不回傳片段時間戳，中文輸出也沒有標點、只用空格分句。逐字稿依空格切成約 30 字的段落，時間是依每個 600 秒分段內的字數線性內插；切換到 `whisper-1` 可得到精確時間戳（貴一倍）。
