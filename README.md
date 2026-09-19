@@ -276,5 +276,6 @@ data/<video_id>/    產出與 manifest（gitignore；repo 內保留一份 demo �
 - `gpt-4o-mini-transcribe` 不回傳片段時間戳，中文輸出也沒有標點、只用空格分句。逐字稿依空格切成約 30 字的段落，時間是依每個 600 秒分段內的字數線性內插；切換到 `whisper-1` 可得到精確時間戳（貴一倍）。
 - edge-tts 需要網路；CJK 字型在 Windows 用微軟正黑體、macOS 用 PingFang，Linux 需自行安裝 Noto Sans CJK 並設 `FINVID_FONT`。
 - 單價表是 2026-09-18 查的，變動請改 `pipeline/pricing.py`。
+- `data/demo/04_render.json` 的 `broll_paths` 指向 `../_broll/`（Pexels 素材的共用快取，gitignored，約 200 MB），fresh clone 裡不存在；成品 mp4 已把素材合成進去，這些路徑只是紀錄。
 - 帳本只記每個 stage 最後一次成功執行；stage 中途失敗（例如第 2 支 clip 的 AI 鏡頭額度用完）時，前面已花的 TTS／已生成鏡頭的秒數不會進帳本，下次成功時鏡頭顯示為 cache hit 0 秒。`finvid costs` 另印 `runs[]` 的歷次總和作為對照。
 - ffmpeg 失敗時只會看到 `CalledProcessError`，stderr 沒有轉出來；本機裝好 ffmpeg 後實務上沒遇過。

@@ -121,7 +121,10 @@ def _rel(ctx: RunContext, p: Path) -> str:
 
 def _rel_any(ctx: RunContext, p: Path) -> str:
     """Like _rel, but for the b-roll cache shared next to the workdirs ("../_broll/<id>_8s.mp4")."""
-    return Path(os.path.relpath(p, ctx.workdir)).as_posix()
+    try:
+        return Path(os.path.relpath(p, ctx.workdir)).as_posix()
+    except ValueError:  # Windows: cache dir on another drive than the workdir -> no relative form exists
+        return p.resolve().as_posix()
 
 
 # ----------------------------------------------------------------------------- execute

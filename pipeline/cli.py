@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -98,6 +99,13 @@ def run(
         console.print("[bold red]AI VIDEO:[/] ", end="")
         console.print(str(e), markup=False, highlight=False)
         raise typer.Exit(code=5)
+    except Exception as e:  # noqa: BLE001 - anything else (yt-dlp, network, ffmpeg): one line, not a traceback
+        if os.environ.get("FINVID_DEBUG"):
+            raise
+        console.print(f"[bold red]ERROR:[/] {type(e).__name__}: ", end="")
+        console.print(str(e)[:1500], markup=False, highlight=False)
+        console.print("(set FINVID_DEBUG=1 for the full traceback)")
+        raise typer.Exit(code=1)
     _print_costs(ctx.manifest, this_run_usd=ctx.spent_usd, dry_run=dry_run, ctx=ctx)
 
 

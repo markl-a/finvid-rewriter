@@ -2,8 +2,10 @@
 
 > 針對 `assignment-brief.md` 的解讀、素材盤點、技術選型與成本策略。
 > 這是「動手前的分析」，不是實作說明；實作完成後 README 另寫。
-> **以 README / COST.md 為準。** 實作與本文的差異：沒有 `--renderer ai`（AI 影片 API 只記對照價，不呼叫）、沒有 `--preview-only`、
-> `--stt local` 實作為環境變數 `FINVID_STT_PROVIDER=local`、反抄襲用 6-gram（非 8-gram）、`--cookies-from-browser` 只出現在 yt-dlp 失敗時的提示訊息。
+> **以 README / COST.md 為準。** 實作與本文的差異：Step 4 的 AI 生成後來**有做**，但不是本文設想的 `--renderer ai` 付費 API，而是
+> `FINVID_AI_VIDEO=hf | pixazo | comfy`（三個免費來源，同一個開源 LTX-Video 模型，可串備援鏈）+ `FINVID_BROLL=pexels`（免費真實素材），
+> 付費的 MiniMax / Kling 是可選項並走預算閘；沒有 `--preview-only`；`--stt local` 實作為 `FINVID_STT_PROVIDER=local`；
+> 反抄襲用 6-gram（非 8-gram）並多了數字溯源閘；`--cookies-from-browser` 只出現在 yt-dlp 失敗時的提示訊息。
 
 ---
 

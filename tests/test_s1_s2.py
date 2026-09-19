@@ -140,7 +140,7 @@ def test_s1_dry_run_estimate(monkeypatch, tmp_path: Path, settings: Settings):
     r = run_stage(ctx, s1.STAGE, s1.stage_config(ctx), s1.execute)
     assert r.outputs == {} and r.costs == []
     assert r.meta["original_duration_sec"] == 1000.0
-    assert r.meta["estimated_processed_duration_sec"] == pytest.approx(920.0)
+    assert r.meta["estimated_processed_duration_sec"] == pytest.approx(1000.0 * (1 - s1.SILENCE_SAVING_RATIO))
     assert s1.STAGE not in ctx.manifest.data["stages"]  # dry-run records nothing
 
 
@@ -237,3 +237,19 @@ def test_s2_run_stage_caches(ctx_with_audio: RunContext, monkeypatch):
     ctx3 = RunContext.create(_settings(stt_model="whisper-1"), URL, data_dir=ctx.workdir.parent,
                              log=lambda *_: None)
     assert ctx3.manifest.cached(s2.STAGE, s2.stage_config(ctx3)) is None
+
+
+def test_s1_redoes_audio_made_with_other_preprocessing(ctx_with_audio: RunContext, monkeypatch):
+    """A wav we produced earlier with different settings must not be reused under the new config hash
+    (the manifest would claim FINVID_SPEEDUP=1.2 audio while the file is still 1.0)."""
+    ctx = ctx_with_audio
+    info = json.loads(ctx.path(s1.INFO_FILE).read_text(encoding="utf-8"))
+    info["preprocessing"] = {**s1.stage_config(ctx), "speedup": 1.2}  # made with speedup, settings now say 1.0
+    info.pop("video_id_", None)
+    ctx.path(s1.INFO_FILE).write_text(json.dumps(info), encoding="utf-8")
+    calls: list[str] = []
+    monkeypatch.setattr(s1, "_fetch_metadata", lambda url: calls.append("meta") or {"title": "T", "channel": "C", "duration": 3.0})
+    monkeypatch.setattr(s1, "_download_audio", lambda *a, **k: (_ for _ in ()).throw(RuntimeError("would download")))
+    with pytest.raises(RuntimeError, match="would download"):
+        s1.execute(ctx)
+    assert calls == ["meta"]  # went past the reuse branch

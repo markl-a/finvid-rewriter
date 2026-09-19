@@ -30,7 +30,7 @@ INFO_FILE = "01_info.json"
 SILENCE_MIN_SEC = 0.7
 SILENCE_THRESHOLD_DB = -35
 # dry-run assumption: silence removal saves roughly this share of a talk-show's seconds
-SILENCE_SAVING_RATIO = 0.08
+SILENCE_SAVING_RATIO = 0.03  # dry-run guess only; measured 0.2% on a show with a music bed, 5-15% on plain talk
 
 DOWNLOAD_HELP = (
     "YouTube download failed. Options: (1) retry later; (2) export browser cookies: "
@@ -143,9 +143,19 @@ def execute(ctx: RunContext) -> StageResult:
     audio_path = ctx.path(AUDIO_FILE)
     info_path = ctx.path(INFO_FILE)
 
-    # Manual fallback: user dropped the wav + info in place (e.g. yt-dlp blocked). Reuse as-is.
-    if not ctx.dry_run and audio_path.exists() and info_path.exists():
+    # Manual fallback: user dropped the wav + info in place (e.g. yt-dlp blocked). Reuse as-is - but only
+    # if it was made with the SAME preprocessing we are about to record as this stage's config; otherwise
+    # a changed FINVID_SPEEDUP / trim / silence setting would be recorded while the old audio stays.
+    if not ctx.dry_run and not ctx.force and audio_path.exists() and info_path.exists():
         info = AudioInfo.model_validate_json(info_path.read_text(encoding="utf-8"))
+        # a hand-placed wav has no preprocessing record: trust it; one we made ourselves must match
+        same = not info.preprocessing or all(
+            info.preprocessing.get(k) == v for k, v in stage_config(ctx).items() if k != "video_id")
+        if not same:
+            ctx.log(f"[{STAGE}] existing {AUDIO_FILE} was made with different preprocessing "
+                    f"({ {k: info.preprocessing.get(k) for k in ('remove_silence', 'trim_head_sec', 'trim_tail_sec', 'speedup')} }) "
+                    f"-> redoing it")
+    if not ctx.dry_run and not ctx.force and audio_path.exists() and info_path.exists() and same:
         ctx.log(f"[{STAGE}] reusing existing {AUDIO_FILE} ({info.processed_duration_sec:.0f}s) - no download")
         return StageResult(
             outputs={"audio": AUDIO_FILE, "info": INFO_FILE}, costs=[],

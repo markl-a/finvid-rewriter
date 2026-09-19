@@ -514,7 +514,6 @@ def execute(ctx: RunContext) -> StageResult:
     # ---- Pass A: cheap model reads the whole transcript once
     transcript_lines = format_transcript(transcript.segments)
     est_a = sum(c.usd for c in _pass_a_estimate(s.llm_cheap_model, len(transcript.text)))
-    ctx.charge(est_a, f"s3 Pass A ({s.llm_cheap_model})")
     user_a = (f"節目：{source}\n影片長度：{_mmss(transcript.duration_sec)}\n\n逐字稿：\n{transcript_lines}")
     # Pass A has its own on-disk cache keyed by (model, prompts): if Pass B aborts half-way
     # (budget guard, network) or only the Pass B prompt changes, the cheap pass is not paid again.
@@ -525,6 +524,7 @@ def execute(ctx: RunContext) -> StageResult:
     if payload_a is not None:
         ctx.log(f"[s3] Pass A: reusing {PASS_A_CACHE_FILE} (same model + prompt), $0")
     else:
+        ctx.charge(est_a, f"s3 Pass A ({s.llm_cheap_model})")  # pre-flight only when we actually call
         payload_a, cost_a = chat_json(s, s.llm_cheap_model, pa_system, user_a, stage=STAGE, note="pass A")
         costs.extend(cost_a)
         ctx.path(PASS_A_CACHE_FILE).write_text(
