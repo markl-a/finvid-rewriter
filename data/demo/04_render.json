@@ -8,8 +8,12 @@
       "duration_sec": 37.55,
       "chart_path": "04_clips/chart_05.png",
       "ai_shot_path": "04_clips/ai_05.mp4",
+      "ai_shot_paths": [
+        "04_clips/ai_05.mp4",
+        "04_clips/ai_05_1.mp4"
+      ],
       "ai_shot_provider": "comfyui",
-      "ai_shot_seconds": 78.6
+      "ai_shot_seconds": 0.0
     },
     {
       "segment_id": 7,
@@ -18,8 +22,12 @@
       "duration_sec": 33.54,
       "chart_path": "04_clips/chart_07.png",
       "ai_shot_path": "04_clips/ai_07.mp4",
+      "ai_shot_paths": [
+        "04_clips/ai_07.mp4",
+        "04_clips/ai_07_1.mp4"
+      ],
       "ai_shot_provider": "comfyui",
-      "ai_shot_seconds": 84.6
+      "ai_shot_seconds": 0.0
     },
     {
       "segment_id": 8,
@@ -28,8 +36,12 @@
       "duration_sec": 39.02,
       "chart_path": "04_clips/chart_08.png",
       "ai_shot_path": "04_clips/ai_08.mp4",
+      "ai_shot_paths": [
+        "04_clips/ai_08.mp4",
+        "04_clips/ai_08_1.mp4"
+      ],
       "ai_shot_provider": "comfyui",
-      "ai_shot_seconds": 84.5
+      "ai_shot_seconds": 0.0
     }
   ]
 }

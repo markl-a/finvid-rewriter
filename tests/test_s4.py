@@ -211,30 +211,57 @@ def _fake_shot(settings: Settings, out: Path, seconds: float = 2.0) -> Path:
     return out
 
 
-def test_compose_with_ai_intro(tmp_path):
-    """The generated shot opens the clip for the hook's duration, then the card takes over."""
+def test_compose_with_ai_footage(tmp_path):
+    """Generated shots run under the whole clip (ping-pong looped per scene window); the chart is
+    overlaid as a card from the first body line; title/attribution layer on top throughout."""
     from PIL import Image
     s = _settings()
     clip = _clip(chart=_chart())
     png = render_chart(clip.chart, tmp_path / "chart.png")
-    line_audio = tts.synthesize_lines(s, [clip.hook, clip.lines[0].text, clip.lines[1].text],
+    line_audio = tts.synthesize_lines(s, [clip.hook, clip.lines[0].text, clip.lines[1].text, clip.lines[2].text],
                                       tmp_path, "c", synth=_silent_audio)
-    shot = _fake_shot(s, tmp_path / "shot.mp4", seconds=0.8)  # shorter than the hook: must loop
+    shots = [_fake_shot(s, tmp_path / "shot0.mp4", seconds=0.8),  # shorter than its window: must loop
+             _fake_shot(s, tmp_path / "shot1.mp4", seconds=0.8)]
     mp4 = tmp_path / "out.mp4"
-    dur = compose_clip(s, clip, line_audio, png, mp4, "TVBS《健康2.0》", intro_video=shot)
-    assert 3.6 <= dur <= 4.4, dur
+    dur = compose_clip(s, clip, line_audio, png, mp4, "TVBS《健康2.0》", shots=shots)
+    assert 4.8 <= dur <= 5.8, dur
     streams = _streams(s, mp4)
     assert "video" in streams and "audio" in streams
 
-    def frame_at(t: float) -> Image.Image:
+    def px(t: float, xy: tuple[int, int]) -> tuple[int, int, int]:
         out = tmp_path / f"f{t}.png"
         subprocess.run([s.ffmpeg_bin(), "-y", "-v", "error", "-ss", str(t), "-i", str(mp4),
                         "-frames:v", "1", str(out)], check=True, capture_output=True, text=True)
-        return Image.open(out).convert("RGB")
+        return Image.open(out).convert("RGB").getpixel(xy)
 
-    # during the hook the centre shows the (colourful) test pattern; afterwards the navy card + chart
-    mid = (s.video_width // 2, s.video_height // 2)
-    r, g, b = frame_at(0.5).getpixel(mid)
-    assert max(r, g, b) - min(r, g, b) > 40, "intro frame should show the footage, not the navy card"
-    r2, g2, b2 = frame_at(3.0).getpixel((s.video_width // 2, int(s.video_height * 0.25)))
-    assert b2 > r2, "after the hook the static navy card is back"
+    W, H = s.video_width, s.video_height
+    def colourful(c): return max(c) - min(c) > 40
+    # hook: footage in the middle, no chart yet
+    assert colourful(px(0.5, (W // 2, H // 2)))
+    # body: chart card (white) in the middle band, footage still visible at the card's sides
+    card_pts = [(W // 2 + dx, int(H * 0.36)) for dx in (-300, -150, 0, 150, 300)]  # top strip of the card
+    assert any(min(px(3.0, pt)) > 200 for pt in card_pts), "chart card should be overlaid during body lines"
+    assert not any(min(px(0.5, pt)) > 200 for pt in card_pts), "no chart card during the hook"
+    assert colourful(px(3.0, (30, H // 2))), "footage must keep playing beside the chart card"
+    assert colourful(px(dur - 0.3, (30, H // 2))), "footage runs to the very end"
+
+
+def test_scene_windows_split():
+    from pipeline.render.compose import _scene_windows
+    t = [(0.0, 2.0), (2.0, 4.0), (4.0, 6.0), (6.0, 8.0)]
+    assert _scene_windows(t, 8.0, 1) == [(0.0, 9.0)]
+    assert _scene_windows(t, 8.0, 2) == [(0.0, 2.0), (2.0, 9.0)]
+    assert _scene_windows(t, 8.0, 3) == [(0.0, 2.0), (2.0, 4.0), (4.0, 9.0)]
+    assert len(_scene_windows(t, 8.0, 10)) == 4  # never more windows than lines
+
+
+def test_shot_prompts_use_visual_keywords():
+    from pipeline.models import ScriptLine
+    from pipeline.stages.s4_render import shot_prompts
+    c = _clip()
+    c.ai_shot = "Slow push-in over Taipei rooftops at dusk"
+    c.lines[1] = ScriptLine(text=c.lines[1].text, visual="mortgage papers on a kitchen table")
+    ps = shot_prompts(c, 3)
+    assert len(ps) == 3 and ps[0].startswith("Slow push-in") and "mortgage papers" in ps[1] or "mortgage papers" in ps[2]
+    assert all("no text" in p for p in ps)
+    assert shot_prompts(_clip(), 1)[0].startswith("Cinematic vertical b-roll for a finance news short")

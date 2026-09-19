@@ -10,7 +10,7 @@
 | 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
 | 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
 | 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.061（8 段候選，3 段寫腳本，省下 5 次強模型呼叫） |
-| 4 `s4_render` | **AI 生成 5 秒開場鏡頭**（本機 ComfyUI + LTX-Video）+ 免費 TTS + matplotlib 重繪圖表 + ffmpeg 合成字幕 | ComfyUI (LTX-Video 2B) + edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭共 248 秒 GPU） |
+| 4 `s4_render` | **AI 生成的畫面鋪滿整支**（本機 ComfyUI + LTX-Video，每支 2 段 5 秒鏡頭 ping-pong 迴圈）+ 圖表卡疊在畫面上 + 免費 TTS + ffmpeg 合成字幕 | ComfyUI (LTX-Video 2B) + edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；6 段 AI 鏡頭共 534 秒 GPU） |
 | | | **合計** | **$0.099** |
 
 對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
@@ -68,7 +68,7 @@ finvid run
 03_scripts.json       所有候選段落（含被跳過的原因）+ 通過的腳本 + 被退回的腳本
 04_clips/clip_XX.mp4  短影音（1080×1920）
 04_clips/chart_XX.png 用數據重繪的圖表
-04_clips/ai_XX.mp4    AI 生成的 5 秒開場鏡頭（FINVID_AI_VIDEO=comfy 時；.json 是 prompt 與 GPU 秒數）
+04_clips/ai_XX*.mp4   AI 生成的 5 秒鏡頭（FINVID_AI_VIDEO=comfy 時，每支 clip 數段；.json 是 prompt 與 GPU 秒數）
 04_render.json
 manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 ```
@@ -114,12 +114,12 @@ python -m pytest -q           # 單元測試（不需要 key、不需要網路�
 
 ---
 
-### 第 4 步的 AI 開場鏡頭（可選，$0，需要 GPU）
+### 第 4 步的 AI 生成畫面（可選，$0，需要 GPU）
 
 預設 `FINVID_AI_VIDEO=none`：影片是靜態卡 + 字幕 + 旁白，秒級完成、不需要 GPU。
-設 `FINVID_AI_VIDEO=comfy` 時，每支 clip 的**開場 hook 那幾秒**會換成 AI 生成的 5 秒直式 B-roll（畫面描述由第 3 步的 Pass B 一起寫在 `ai_shot`），之後接回圖表卡。用本機 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) + [LTX-Video 2B 蒸餾版](https://huggingface.co/Lightricks/LTX-Video)：**$0，不用任何 key**，代價是時間——demo 機器（AMD Radeon 8060S 內顯，32 GB）每段 79–107 秒。
+設 `FINVID_AI_VIDEO=comfy` 時，整支 clip 的背景都是 AI 生成的直式影片：每支生成 `FINVID_AI_SHOTS_PER_CLIP`（預設 2）段 5 秒鏡頭——第 1 段用第 3 步 Pass B 寫的 `ai_shot`（開場畫面描述），其餘用該段台詞的 `visual` 關鍵字組 prompt——每段做成正放+倒放的無縫迴圈鋪滿它負責的時間窗；重繪的圖表從第一句正文起以卡片疊在畫面中段，標題／字幕／出處疊最上層。用本機 [ComfyUI](https://github.com/comfyanonymous/ComfyUI) + [LTX-Video 2B 蒸餾版](https://huggingface.co/Lightricks/LTX-Video)：**$0，不用任何 key**，代價是時間——demo 機器（AMD Radeon 8060S 內顯，32 GB）每段 79–121 秒，3 支 6 段約 9 分鐘。
 
-只生成開場 5 秒而不是整支 40 秒是刻意的：整支 AI 生成要 8 倍的 GPU 時間（或雲端 $2–5/支），而財經數據內容的畫面價值集中在前 3 秒能不能讓人停下來；數據本身用重繪的圖表比 AI 畫面更可信。
+每支只生成 2 段 5 秒而不是逐句生成 40 秒是刻意的：GPU 時間隨段數線性增加（雲端則是 $0.3–5/支），迴圈後觀感差異不大；數據本身用重繪的圖表比 AI 畫面更可信，所以圖表是疊在畫面上、不是被畫面取代。
 
 ```bash
 # 一次性安裝（NVIDIA 照 ComfyUI 官方 README；AMD Windows 照下面，來自 AMD 的 ROCm 部落格）
@@ -154,7 +154,7 @@ brief 點名的三件事，對應的機制：
 - Pass A 用便宜模型（`gpt-5-mini`）讀整份逐字稿一次，切成 5–10 段並給每段 hook 分數、有無可畫圖的數據。
 - 篩選閘是純程式：分數低於門檻、主題重複、超過 `--max-clips` 的段落都不進下一步。候選段落通常 6–10 段，只有 3 段送強模型，其餘在 `03_scripts.json` 留下跳過原因。
 - 強模型（`gpt-5`）每段一次呼叫，是流程中單價最高的地方，所以只在這裡用。
-- 生成影片的「貴的那一步」（AI 影片生成）只做在最值錢的地方：每支 clip 一段 5 秒開場，而且只給通過篩選 + 反抄襲閘的 clip；用本機 ComfyUI 是 $0 + 90 秒 GPU，換雲端 API 也走同一個閘與預算護欄。其餘畫面用 TTS + matplotlib + ffmpeg。帳本裡另記「若整支都用 Runway/Kling 類 API 會花多少」當對照（3 支約 $27.5）。
+- 生成影片的「貴的那一步」（AI 影片生成）控制在固定用量：每支 clip 2 段 5 秒鏡頭迴圈鋪滿，而不是逐句生成；而且只給通過篩選 + 反抄襲閘的 clip；用本機 ComfyUI 是 $0 + 每段 90 秒 GPU，換雲端 API 也走同一個閘與預算護欄。其餘畫面用 TTS + matplotlib + ffmpeg。帳本裡另記「若整支都用 Runway/Kling 類 API 會花多少」當對照（3 支約 $27.5）。
 
 **「是否避免同一支影片重複處理」**
 - `data/<video_id>/manifest.json` 記每個 stage 的設定 hash 與輸出檔。設定沒變、檔案還在就跳過。

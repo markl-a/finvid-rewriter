@@ -130,9 +130,10 @@ class RenderedClip(BaseModel):
     video_path: str
     duration_sec: float
     chart_path: str | None = None
-    ai_shot_path: str | None = None      # generated opening shot, if FINVID_AI_VIDEO != none
+    ai_shot_path: str | None = None      # first generated shot (opening), if FINVID_AI_VIDEO != none
+    ai_shot_paths: list[str] = Field(default_factory=list)  # every shot, in scene order
     ai_shot_provider: str | None = None
-    ai_shot_seconds: float = 0.0         # wall/GPU seconds it took (0 on cache hit)
+    ai_shot_seconds: float = 0.0         # wall/GPU seconds for all shots of this clip (0 on cache hit)
 
 
 class RenderOutput(BaseModel):

@@ -136,6 +136,44 @@ def build_frame_overlay(settings: Settings, clip: ScriptClip, source_name: str, 
     return out_png
 
 
+def build_chart_card(settings: Settings, chart_png: Path, out_png: Path, width_ratio: float = 0.86) -> Path:
+    """Transparent full-frame RGBA layer with the re-drawn chart as a rounded card (+ shadow) in the
+    middle band, so it can be overlaid on moving footage and the video stays visible around it."""
+    W, H = settings.video_width, settings.video_height
+    k = W / REF_W
+    img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    chart = Image.open(chart_png).convert("RGB")
+    cw = int(CHART_W * k * width_ratio)
+    ch = int(chart.height * cw / chart.width)
+    mid_top, mid_bottom = int(MID_TOP * k), int(MID_BOTTOM * k)
+    max_h = mid_bottom - mid_top
+    if ch > max_h:
+        ch = max_h
+        cw = int(chart.width * ch / chart.height)
+    chart = chart.resize((cw, ch), Image.LANCZOS)
+    x0 = W // 2 - cw // 2
+    y0 = mid_top + (max_h - ch) // 2
+    r = int(28 * k)
+    shadow = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(shadow).rounded_rectangle([x0 + 8, y0 + 14, x0 + cw + 8, y0 + ch + 14], radius=r, fill=(0, 0, 0, 140))
+    img.alpha_composite(shadow)
+    mask = Image.new("L", (cw, ch), 0)
+    ImageDraw.Draw(mask).rounded_rectangle([0, 0, cw - 1, ch - 1], radius=r, fill=255)
+    img.paste(chart, (x0, y0), mask)
+    out_png.parent.mkdir(parents=True, exist_ok=True)
+    img.save(out_png)
+    return out_png
+
+
+def pingpong(settings: Settings, src: Path, dst: Path) -> Path:
+    """src played forward then backward -> a seamless loop unit twice as long (no jump cut)."""
+    subprocess.run([settings.ffmpeg_bin(), "-y", "-v", "error", "-nostdin", "-i", str(src),
+                    "-filter_complex", "[0:v]split[a][b];[b]reverse[r];[a][r]concat=n=2:v=1:a=0[v]",
+                    "-map", "[v]", "-an", "-c:v", "libx264", "-preset", "fast", "-crf", "20",
+                    "-pix_fmt", "yuv420p", str(dst)], check=True, capture_output=True, text=True)
+    return dst
+
+
 def build_background(settings: Settings, clip: ScriptClip, chart_png: Path | None, source_name: str,
                      out_png: Path) -> Path:
     W, H = settings.video_width, settings.video_height
@@ -206,13 +244,30 @@ def build_subtitle(settings: Settings, text: str, out_png: Path, emphasis: bool 
     return out_png
 
 
+def _scene_windows(timings: list[tuple[float, float]], total: float, n: int) -> list[tuple[float, float]]:
+    """Split the clip's lines into n contiguous groups; each group's time span gets one shot.
+    The first window is the hook alone when n > 1 (that's the shot Pass B described)."""
+    n = max(1, min(n, len(timings)))
+    if n == 1:
+        return [(0.0, total + 1.0)]
+    body = timings[1:]
+    groups = [body[j * len(body) // (n - 1):(j + 1) * len(body) // (n - 1)] for j in range(n - 1)]
+    groups = [g for g in groups if g]
+    wins = [(0.0, timings[0][1])] + [(g[0][0], g[-1][1]) for g in groups]
+    wins[-1] = (wins[-1][0], total + 1.0)
+    return wins
+
+
 def compose_clip(settings: Settings, clip: ScriptClip, line_audio: list[tuple[str, Path, float]],
                  chart_png: Path | None, out_mp4: Path, source_name: str,
-                 intro_video: Path | None = None) -> float:
+                 shots: list[Path] | None = None) -> float:
     """Render clip -> out_mp4. `line_audio` = [(text, audio_path, duration)] in playback order
-    (hook first, then clip.lines). With `intro_video`, the generated shot (looped/trimmed to the
-    hook's duration, scaled+cropped to the frame, title/attribution laid over) opens the clip
-    and the static card takes over from the first body line. Returns the measured duration."""
+    (hook first, then clip.lines). Returns the measured duration in seconds.
+
+    Without `shots`: static card (title, chart or key message, attribution) + subtitles.
+    With `shots`: generated footage runs under the WHOLE clip - each shot is ping-pong looped to
+    fill its scene window (hook first, then the body split evenly) - with the title/attribution
+    layer on top and the re-drawn chart overlaid as a card from the first body line onward."""
     if not line_audio:
         raise ValueError("compose_clip needs at least one line of audio")
     emphasis = [False] + [ln.emphasis for ln in clip.lines]
@@ -221,7 +276,6 @@ def compose_clip(settings: Settings, clip: ScriptClip, line_audio: list[tuple[st
 
     with tempfile.TemporaryDirectory(prefix="finvid_") as td:
         tmp = Path(td)
-        bg = build_background(settings, clip, chart_png, source_name, tmp / "bg.png")
         wav = tmp / "voice.wav"
         total = tts.concat_audio(settings, [p for _, p, _ in line_audio], wav)
         timings = tts.line_timings([dur for _, _, dur in line_audio])
@@ -232,29 +286,41 @@ def compose_clip(settings: Settings, clip: ScriptClip, line_audio: list[tuple[st
 
         cmd = [settings.ffmpeg_bin(), "-y", "-v", "error", "-nostdin"]
         chain: list[str] = []
-        if intro_video is not None:
-            hook_end = timings[0][1] if len(timings) > 1 else total + 1.0
+        if shots:
+            windows = _scene_windows(timings, total, len(shots))
+            shots = shots[:len(windows)]
+            loops = [pingpong(settings, sp, tmp / f"pp_{i}.mp4") for i, sp in enumerate(shots)]
+            for lp in loops:
+                cmd += ["-stream_loop", "-1", "-i", str(lp)]                    # 0..n-1: footage
+            n = len(loops)
             frame = build_frame_overlay(settings, clip, source_name, tmp / "frame.png")
-            cmd += ["-stream_loop", "-1", "-i", str(intro_video),          # 0: AI shot, looped
-                    "-loop", "1", "-framerate", "30", "-i", str(bg),        # 1: static card
-                    "-i", str(wav),                                         # 2: voice
-                    "-i", str(frame)]                                       # 3: title/attribution layer
-            first_sub, audio_in = 4, "2:a"
-            chain += [
-                f"[0:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps=30,setsar=1,"
-                f"trim=duration={hook_end:.3f},setpts=PTS-STARTPTS[iv]",
-                "[iv][3:v]overlay=0:0[iv2]",
-                f"[1:v]trim=duration={total + 1.0 - hook_end:.3f},setpts=PTS-STARTPTS[sv]",
-                "[iv2][sv]concat=n=2:v=1:a=0[base]",
-            ]
-            prev, tune = "[base]", []
+            cmd += ["-i", str(wav), "-i", str(frame)]                           # n: voice, n+1: frame
+            audio_in = f"{n}:a"
+            card_idx = None
+            if chart_png is not None and Path(chart_png).exists():
+                card = build_chart_card(settings, chart_png, tmp / "card.png")
+                cmd += ["-i", str(card)]                                        # n+2: chart card
+                card_idx = n + 2
+            first_sub = n + 2 + (1 if card_idx is not None else 0)
+            for i, (start, end) in enumerate(windows):
+                chain.append(f"[{i}:v]scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},"
+                             f"fps=30,setsar=1,trim=duration={end - start:.3f},setpts=PTS-STARTPTS[bg{i}]")
+            chain.append("".join(f"[bg{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[foot]")
+            chain.append(f"[foot][{n + 1}:v]overlay=0:0[base]")
+            prev = "[base]"
+            if card_idx is not None:
+                chart_from = timings[1][0] if len(timings) > 1 else 0.0
+                chain.append(f"{prev}[{card_idx}:v]overlay=0:0:enable='gte(t,{chart_from:.3f})'[withchart]")
+                prev = "[withchart]"
+            tune = ["-crf", "26"]  # moving footage at crf 22 is ~8 MB per clip; 26 halves it, still fine for short-form
         else:
-            cmd += ["-loop", "1", "-framerate", "30", "-i", str(bg),        # 0: static card
-                    "-i", str(wav)]                                         # 1: voice
+            bg = build_background(settings, clip, chart_png, source_name, tmp / "bg.png")
+            cmd += ["-loop", "1", "-framerate", "30", "-i", str(bg),            # 0: static card
+                    "-i", str(wav)]                                             # 1: voice
             first_sub, audio_in = 2, "1:a"
             prev, tune = "[0:v]", ["-tune", "stillimage"]
-        for s in subs:
-            cmd += ["-i", str(s)]
+        for sp in subs:
+            cmd += ["-i", str(sp)]
         sub_y = int(SUB_Y * W / REF_W)
         for i, (start, end) in enumerate(timings):
             if i == len(timings) - 1:
@@ -264,7 +330,7 @@ def compose_clip(settings: Settings, clip: ScriptClip, line_audio: list[tuple[st
             prev = out
         chain.append(f"{prev}format=yuv420p[vout]")
         cmd += ["-filter_complex", ";".join(chain), "-map", "[vout]", "-map", audio_in,
-                "-c:v", "libx264", "-preset", "fast", "-crf", "22", *tune,
+                "-c:v", "libx264", "-preset", "fast", "-crf", "22", *tune,  # a later -crf overrides
                 "-r", "30", "-pix_fmt", "yuv420p",
                 "-c:a", "aac", "-b:a", "128k",
                 "-t", f"{total:.3f}", "-shortest", "-movflags", "+faststart", str(out_mp4)]

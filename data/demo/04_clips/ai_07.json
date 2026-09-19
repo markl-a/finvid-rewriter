@@ -1,9 +1,9 @@
 {
-  "key": "b005ebc48e0e16bd",
-  "prompt": "Slow push-in over a twilight Taiwanese cityscape with clusters of new high-rise apartments. Subtle traffic trails on boulevards, soft warm streetlights contrasting cool blue sky. Camera glides past modern condo facades and cranes, hinting at rapid development and rising prices. No faces, no signage, clean cinematic look.. Vertical 9:16 framing, no text, no captions, no logos, no watermarks.",
+  "key": "c60b43aaece43d57",
+  "prompt": "Slow push-in over a twilight Taiwanese cityscape with clusters of new high-rise apartments. Subtle traffic trails on boulevards, soft warm streetlights contrasting cool blue sky. Camera glides past modern condo facades and cranes, hinting at rapid development and rising prices. No faces, no signage, clean cinematic look. Vertical 9:16 framing, no text, no captions, no logos, no watermarks, no readable faces.",
   "seconds": 5.0,
-  "seed": 7,
-  "wall_seconds": 84.6,
+  "seed": 70,
+  "wall_seconds": 86.7,
   "device": "cuda:0 AMD Radeon(TM) 8060S Graphics : native",
   "workflow": "ltxv_t2v.json"
 }

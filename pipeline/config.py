@@ -47,6 +47,7 @@ class Settings(BaseSettings):
     # step 4: AI-generated opening shot per clip. none = static card only (default, $0, seconds)
     ai_video: str = "none"  # none | comfy
     ai_shot_seconds: float = 5.0
+    ai_shots_per_clip: int = 2  # 1 = one shot ping-pong looped under the whole clip; 2+ = more variety, linear GPU cost
     ai_shot_width: int = 576   # 9:16, multiples of 32 for LTX
     ai_shot_height: int = 1024
     ai_shot_fps: int = 24
