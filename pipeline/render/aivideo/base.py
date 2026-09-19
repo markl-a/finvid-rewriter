@@ -56,6 +56,11 @@ class CachedShotProvider:
                            note=f"{n_shots} AI shot(s) x ~{seconds_each:.0f}s via {self.name}, "
                                 f"~{self.est_seconds:.0f}s each")]
 
+    def quantity(self, *, wall: float, seconds: float) -> float:
+        """What the real ledger row counts. Free GPU backends: wall seconds (time is the cost);
+        metered APIs override with video seconds or 1 per video, matching their `unit`."""
+        return wall
+
     # ---- generate with cache -------------------------------------------------------------------
     def cache_key(self, prompt: str, *, seconds: float, seed: int) -> str:
         raw = json.dumps(self.cache_fields(prompt, seconds=seconds, seed=seed), sort_keys=True, ensure_ascii=False)
@@ -83,7 +88,8 @@ class CachedShotProvider:
                                    ensure_ascii=False, indent=2), encoding="utf-8")
         where = meta.get("device") or meta.get("space") or self.name
         return ShotResult(path=out_mp4, wall_seconds=wall, meta=meta,
-                          costs=[self.entry(wall, estimated=False, note=f"{out_mp4.name}: {wall:.0f}s on {where}")])
+                          costs=[self.entry(self.quantity(wall=wall, seconds=seconds), estimated=False,
+                                            note=f"{out_mp4.name}: {wall:.0f}s on {where}")])
 
     def _to_mp4(self, src: Path, out_mp4: Path) -> None:
         """Whatever came back (webm/mp4/webp, any fps) -> h264 mp4 at our fps, no audio."""

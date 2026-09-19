@@ -114,7 +114,7 @@ python -m pytest -q           # 單元測試（不需要 key、不需要網路�
 
 ---
 
-### 第 4 步的 AI 生成畫面（可選，$0）
+### 第 4 步的 AI 生成畫面（可選，$0；付費選項受預算護欄）
 
 預設 `FINVID_AI_VIDEO=none`：影片是靜態卡 + 字幕 + 旁白，秒級完成、不需要 GPU 也不需要 key。
 
@@ -122,9 +122,11 @@ python -m pytest -q           # 單元測試（不需要 key、不需要網路�
 |---|---|---|---|---|
 | `hf` | Hugging Face ZeroGPU 上 Lightricks 官方的 LTX-Video Space | **$0** | ~25 秒 | 什麼都不用；匿名每天約 1–2 段，填免費帳號的 `HF_TOKEN` 額度較大 |
 | `comfy` | 你自己的 GPU（本機 ComfyUI） | $0 | 80–120 秒（Radeon 8060S 內顯） | 裝 ComfyUI + 11.5 GB 模型（下面） |
-| `hf,comfy` | 先雲端免費額度，用完自動換本機 | $0 | — | 兩者 |
+| `pixazo` | Pixazo 代管的 LTX-Video 端點（預覽期免費方案） | **$0** | ~60 秒 | 免費 key（`PIXAZO_API_KEY`，不用信用卡；每分鐘 60 次請求） |
+| `minimax` | MiniMax Hailuo API（唯一付費選項） | $0.27/段（768P；512P $0.08、1080P $0.54） | 20–60 秒 | 付費 key（`MINIMAX_API_KEY`）；輸出 16:9，合成時置中裁成 9:16 |
+| `hf,pixazo,comfy` | 先雲端免費額度，用完自動換本機 | $0 | — | 以上 |
 
-免費額度就是這一步的「預算」：額度用完會明確報錯（或依備援鏈換下一個），已生成的鏡頭都有快取，隔天再跑只補缺的。這跟 OpenAI 那邊的 `FINVID_MAX_BUDGET_USD` 是同一個思路，只是單位從美金變成 GPU 秒。
+免費額度就是這一步的「預算」：額度用完會明確報錯（或依備援鏈換下一個），已生成的鏡頭都有快取，隔天再跑只補缺的。這跟 OpenAI 那邊的 `FINVID_MAX_BUDGET_USD` 是同一個思路，只是單位從美金變成 GPU 秒。付費的 `minimax` 則直接走美金那條路：每段生成前先以表定價格（`minimax.py` 的 `PRICES_USD`，2026-09-19 看到的價格）過 `FINVID_MAX_BUDGET_USD` 的護欄，跟每一次 OpenAI 呼叫一樣，超預算就在呼叫前中止；備援鏈裡把它放最後，只有免費的都用完才會付錢。
 
 不管哪個 provider，整支 clip 的背景都是 AI 生成的直式影片：每支生成 `FINVID_AI_SHOTS_PER_CLIP`（預設 2）段 5 秒鏡頭——第 1 段用第 3 步 Pass B 寫的 `ai_shot`（開場畫面描述），其餘用該段台詞的 `visual` 關鍵字組 prompt——每段做成正放+倒放的無縫迴圈鋪滿它負責的時間窗；重繪的圖表從第一句正文起以卡片疊在畫面中段，標題／字幕／出處疊最上層。兩個 provider 用的是同一個模型（[LTX-Video 2B 蒸餾版](https://huggingface.co/Lightricks/LTX-Video)）：`hf` 是 Lightricks 自己架在 ZeroGPU 的 demo，`comfy` 是本機 [ComfyUI](https://github.com/comfyanonymous/ComfyUI)——demo 機器（AMD Radeon 8060S 內顯，32 GB）每段 79–121 秒，3 支 6 段約 9 分鐘。
 
@@ -149,7 +151,7 @@ D:\tools\comfyui-venv\Scripts\python D:\tools\ComfyUI\main.py --listen 127.0.0.1
 FINVID_AI_VIDEO=comfy finvid run          # PowerShell: $env:FINVID_AI_VIDEO="comfy"; finvid run
 ```
 
-流程在 `pipeline/render/aivideo/`：`hf_space.py` 用 `gradio_client` 呼叫 Space 的 `/text_to_video`；`comfy.py` 的 workflow 是 ComfyUI API 格式的 JSON 模板（`workflows/ltxv_t2v.json`，可換成任何自己的 workflow，`FINVID_COMFY_WORKFLOW=` 指向即可），程式填入 prompt / 尺寸 / 幀數 / seed 後 `POST /prompt`，輪詢 `/history`，抓回檔案轉 h264。ComfyUI 沒開時會明確報錯，不會默默退回靜態卡。帳本記 `comfyui / gpu_second` 單價 $0，dry-run 也會估 GPU 秒數，所以「$0 但每支 90 秒」和「$0.27 但 20 秒」（MiniMax）可以放在同一張表比。
+流程在 `pipeline/render/aivideo/`：`hf_space.py` 用 `gradio_client` 呼叫 Space 的 `/text_to_video`；`pixazo.py` 送 LTX 參數（幀數 8k+1、576×1024、8 步）到 `gateway.pixazo.ai`，輪詢 `polling_url` 到 `COMPLETED` 再抓 `media_url`；`minimax.py` 送 `video_generation`、輪詢 `query/video_generation` 到 `Success`、`files/retrieve` 拿下載網址（Hailuo 文字生影片沒有直式參數，只能出 16:9，`compose.py` 放大置中裁成 9:16，兩側會被裁掉）；`comfy.py` 的 workflow 是 ComfyUI API 格式的 JSON 模板（`workflows/ltxv_t2v.json`，可換成任何自己的 workflow，`FINVID_COMFY_WORKFLOW=` 指向即可），程式填入 prompt / 尺寸 / 幀數 / seed 後 `POST /prompt`，輪詢 `/history`，抓回檔案轉 h264。ComfyUI 沒開時會明確報錯，不會默默退回靜態卡。帳本記 `comfyui / gpu_second` 單價 $0，dry-run 也會估 GPU 秒數，所以「$0 但每支 90 秒」和「$0.27 但 20 秒」（MiniMax）可以放在同一張表比。
 
 ## 2. 成本意識：這個流程在哪裡省錢
 

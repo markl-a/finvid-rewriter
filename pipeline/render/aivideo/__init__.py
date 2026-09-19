@@ -2,7 +2,10 @@
 
 One provider interface, several backends. `comfy` runs a local ComfyUI server (free, your GPU,
 ~90 s per shot); `hf` calls a public Hugging Face ZeroGPU Space (free daily quota, ~25 s per
-shot, no key needed); paid cloud APIs would plug in the same way.
+shot, no key needed); `pixazo` calls Pixazo's hosted LTX endpoint (free preview tier, free key,
+~60 s per shot); `minimax` is MiniMax Hailuo, the one paid backend ($0.27 per 768P shot, ~20-60 s),
+kept so the cost comparison in the ledger is real. Any of them can be chained with commas
+(`hf,pixazo,comfy`): free quotas first, then the local GPU, and a paid API only if you list it.
 Every backend goes through the same gate: only clips that survived the s3 selection +
 plagiarism check get a shot, one shot per clip, budget-guarded, cached by prompt hash.
 """
@@ -83,7 +86,16 @@ def _single(kind: str, settings: Settings):
         from .hf_space import HFSpaceProvider
 
         return HFSpaceProvider.from_settings(settings)
-    raise ValueError(f"unknown FINVID_AI_VIDEO backend {kind!r} (none | comfy | hf, comma-separated for fallback)")
+    if kind == "pixazo":
+        from .pixazo import PixazoProvider
+
+        return PixazoProvider.from_settings(settings)
+    if kind == "minimax":
+        from .minimax import MiniMaxProvider
+
+        return MiniMaxProvider.from_settings(settings)
+    raise ValueError(f"unknown FINVID_AI_VIDEO backend {kind!r} "
+                     f"(none | comfy | hf | pixazo | minimax, comma-separated for fallback)")
 
 
 def make_provider(settings: Settings) -> AIVideoProvider | None:

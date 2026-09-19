@@ -1,6 +1,6 @@
 # 成本假設與決策說明
 
-所有單價集中在 [`pipeline/pricing.py`](../pipeline/pricing.py)，2026-09-18 依 OpenAI 官方定價頁確認。
+所有單價集中在 [`pipeline/pricing.py`](../pipeline/pricing.py)，2026-09-18 依 OpenAI 官方定價頁確認；唯一的付費影片 API（MiniMax）單價在 [`pipeline/render/aivideo/minimax.py`](../pipeline/render/aivideo/minimax.py) 的 `PRICES_USD`，2026-09-19 看到的套餐價。
 實際花費以 `data/<video_id>/manifest.json` 的帳本為準（`finvid costs` 可印；repo 內附的 demo 用 `finvid costs --url demo`）。
 
 ## 1. 單價表
@@ -17,6 +17,8 @@
 | TTS | `gpt-4o-mini-tts` | $0.60 / 1M 字元 + 音訊 token ≈ $0.00005/字 | 可選 |
 | AI 鏡頭（免費雲端） | HF ZeroGPU Space（Lightricks/ltx-video-distilled） | $0，每段約 25 秒；匿名每天約 1–2 段，免費帳號 token 更多 | `FINVID_AI_VIDEO=hf`；額度即預算 |
 | AI 鏡頭（本機） | ComfyUI + LTX-Video 2B distilled | $0，每段 5 秒約 80–120 秒 GPU（Radeon 8060S 內顯） | `FINVID_AI_VIDEO=comfy`；帳本記 gpu_second |
+| AI 鏡頭（免費雲端） | Pixazo 代管 LTX-Video（預覽期免費方案） | $0，每段約 60 秒；每分鐘 60 次請求 | `FINVID_AI_VIDEO=pixazo`；免費 key、不用信用卡；帳本記 second（影片秒數）單價 $0 |
+| AI 鏡頭（付費雲端） | MiniMax `MiniMax-Hailuo-02` 6 秒 | 512P $0.08、768P $0.27、1080P $0.54 / 段（1 點 ≈ $0.27，套餐價，2026-09-19 看到） | `FINVID_AI_VIDEO=minimax`；帳本記 video 單價 = 表定價，dry-run 與預算閘用同一個數字；輸出 16:9 裁成 9:16 |
 | AI 影片 API（對照用） | Runway / Kling / Veo 類 | ≈ $0.25 / 秒 | 流程不會呼叫，只算對照 |
 
 ## 2. 本片一次完整執行的估算與實際
@@ -92,7 +94,8 @@
 ### 影片生成：固定每支 2 段 5 秒鏡頭迴圈，而且用本機
 - brief 說「生成短影音通常是最貴的一步」——整支 40 秒逐句用雲端 API 生成是每支 $2–10。財經數據型內容的價值在數字與圖表，所以生成用量鎖定：每支 clip 2 段 5 秒（開場 + 正文各一），正放+倒放迴圈鋪滿整支；圖表用 matplotlib 重繪後疊在畫面上（$0、可控、天然符合「圖表自製」），字幕／旁白／出處用 PIL + edge-tts + ffmpeg。
 - 生成的閘門跟寫腳本一樣：只給通過篩選與反抄襲閘的 clip、每支固定段數、預算閘、依 (provider, model, workflow, prompt) hash 快取（換版面重渲染時 6 段全部命中，33 秒完成）。
-- 兩個免費 provider：HF ZeroGPU（雲端、25 秒/段、每日額度）與本機 ComfyUI（80–120 秒/段、無上限），同一個開源 LTX-Video 模型，`hf,comfy` 先花免費額度再用本機。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
+- 三個免費 provider：HF ZeroGPU（雲端、25 秒/段、每日額度）、Pixazo（雲端、約 60 秒/段、預覽期免費、免費 key）與本機 ComfyUI（80–120 秒/段、無上限），同一個開源 LTX-Video 模型，`hf,pixazo,comfy` 先花免費額度再用本機。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
+- 三種「$0」不是同一種 $0，跟唯一的付費選項放在一起看：**$0 但有配額**（`hf` 匿名每天 1–2 段、`pixazo` 每分鐘 60 次且預覽期隨時可能收費）——適合每天幾支的 demo；**$0 但吃 GPU 分鐘**（`comfy`，3 支 6 段約 9 分鐘）——無上限但機器被占住，量大時電費與等待時間才是成本；**$0.27 但 20 秒**（`minimax` 768P；512P $0.08 畫質夠用於背景）——本片 3 支 6 段 = $1.62，比整份 OpenAI 帳單（$0.10）貴 16 倍，所以它只能是明確列在 `FINVID_AI_VIDEO` 最後的備援，而且每段生成前都過 `FINVID_MAX_BUDGET_USD`（預設 $1.00 會擋下第 4 段）。轉折點大約在「每天要出 10 支以上、而且沒有閒置 GPU」：那時 MiniMax 的吞吐（每段 20–60 秒、可並行）才值 $0.27。
 - 帳本仍記一筆「整支都用 AI 影片 API」的 reference 費用（3 支約 $27.5），讓省下的量可見。
 
 ### 冪等快取的粒度

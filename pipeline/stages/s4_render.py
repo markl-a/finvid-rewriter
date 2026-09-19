@@ -162,6 +162,7 @@ def execute(ctx: RunContext) -> StageResult:
 
         shot_paths: list[Path] = []
         shot_secs = 0.0
+        shot_usd = 0.0
         if provider is not None:
             # same gate as everything else: only selected, plagiarism-clean clips get shots,
             # a fixed number per clip, pre-flight charged (free providers charge $0), cached by prompt hash
@@ -173,6 +174,7 @@ def execute(ctx: RunContext) -> StageResult:
                                          seed=sid * 10 + k, log=ctx.log)
                 costs.extend(shot.costs)
                 committed += sum(c.usd for c in shot.costs)
+                shot_usd += sum(c.usd for c in shot.costs)
                 shot_paths.append(shot.path)
                 shot_secs += shot.wall_seconds
                 ctx.log(f"[{STAGE}] clip {sid}: AI shot {k + 1}/{s.ai_shots_per_clip} "
@@ -193,7 +195,7 @@ def execute(ctx: RunContext) -> StageResult:
                                      ai_shot_path=_rel(ctx, shot_paths[0]) if shot_paths else None,
                                      ai_shot_paths=[_rel(ctx, sp) for sp in shot_paths],
                                      ai_shot_provider=provider.name if provider else None,
-                                     ai_shot_seconds=round(shot_secs, 1)))
+                                     ai_shot_seconds=round(shot_secs, 1), ai_shot_usd=round(shot_usd, 4)))
         outputs[f"clip_{sid}"] = _rel(ctx, mp4)
         for k, sp in enumerate(shot_paths):
             outputs[f"ai_{sid}_{k}"] = _rel(ctx, sp)

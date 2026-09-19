@@ -23,6 +23,8 @@ class Settings(BaseSettings):
     # keys (no prefix)
     openai_api_key: str | None = Field(default=None, validation_alias="OPENAI_API_KEY")
     hf_token: str | None = Field(default=None, validation_alias="HF_TOKEN")  # optional: bigger ZeroGPU quota
+    pixazo_api_key: str | None = Field(default=None, validation_alias="PIXAZO_API_KEY")  # free LTX tier
+    minimax_api_key: str | None = Field(default=None, validation_alias="MINIMAX_API_KEY")  # paid (Hailuo)
 
     # step 2
     stt_provider: str = "openai"  # openai | local
@@ -46,7 +48,7 @@ class Settings(BaseSettings):
     font: str | None = None  # path to a TTF/TTC with Traditional Chinese glyphs (auto-detected if unset)
 
     # step 4: AI-generated opening shot per clip. none = static card only (default, $0, seconds)
-    ai_video: str = "none"  # none | comfy (local ComfyUI) | hf (Hugging Face ZeroGPU Space, free)
+    ai_video: str = "none"  # none | comfy (local ComfyUI) | hf (HF ZeroGPU Space, free) | pixazo (free tier) | minimax (paid)
     ai_shot_seconds: float = 5.0
     ai_shots_per_clip: int = 2  # 1 = one shot ping-pong looped under the whole clip; 2+ = more variety, linear GPU cost
     ai_shot_width: int = 576   # 9:16, multiples of 32 for LTX
@@ -62,6 +64,11 @@ class Settings(BaseSettings):
     comfy_cfg: float = 1.0
     comfy_timeout_sec: float = 1800
     comfy_est_gpu_seconds: float = 90  # dry-run estimate per shot: measured 79-107 s on a Radeon 8060S iGPU
+    pixazo_timeout_sec: float = 600
+    pixazo_est_seconds: float = 60  # wall seconds per shot for dry-run notes (free tier queue included)
+    minimax_model: str = "MiniMax-Hailuo-02"  # priced in render/aivideo/minimax.py PRICES_USD
+    minimax_resolution: str = "768P"  # 512P | 768P | 1080P (6 s only)
+    minimax_timeout_sec: float = 900
 
     # guardrails
     max_budget_usd: float = 1.0
