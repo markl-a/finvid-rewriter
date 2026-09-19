@@ -28,6 +28,25 @@
 
 ## 1. 在本機跑起來
 
+### 最快的方式：一鍵啟動
+
+```
+Windows：對 start-finvid.bat 按兩下
+macOS：  對 start-finvid.command 按兩下（第一次若被擋，右鍵 → 打開；或在終端機 ./start-finvid.command）
+Linux：  ./start-finvid.command
+```
+
+它會自己建 `.venv`、安裝專案（第一次約 2 分鐘）、檢查 ffmpeg、用 `.env.example` 建 `.env`，然後打開瀏覽器到 http://127.0.0.1:8000。
+頁面最上方的「設定」面板可以：
+
+- 填 `OPENAI_API_KEY`（必填）與各個免費／付費 provider 的 key，按「檢查」即時驗證（OpenAI 列模型、HF 顯示帳號、Pexels 顯示剩餘額度、ComfyUI 顯示 GPU 與模型檔是否齊全）
+- 選第 4 步要用的 AI 生成來源（`hf` / `hf,pixazo,comfy` / …）與真實素材（`pexels`）
+- 「儲存到 .env」——寫進專案的 `.env`，**下次啟動就記得**；key 只存本機，頁面只顯示尾 4 碼
+
+設定好之後在「執行」貼網址按開始（先勾 dry-run 看估算）。需要 Python 3.11+ 已裝在系統上（Windows：`winget install Python.Python.3.12`，macOS：`brew install python@3.12`）；其他都由腳本處理。以下是手動版本，做的事一樣。
+
+### 手動方式
+
 需求：Python 3.11+、ffmpeg、一把 OpenAI API key。整支 demo 約 $0.1，帳戶有幾塊美金餘額（或新帳號的試用額度）就夠；
 **預設 `finvid run` 產出的是靜態卡版本**（不需要 GPU、不需要其他 key）；要重現 [data/demo/](data/demo/) 那種「AI 開場 + 真實素材」的成品，看下面「重現 demo」。
 沒有 key 也能做三件事：跑測試、`finvid run --dry-run` 看估算、`finvid serve` 看 repo 內附的 demo 產出。
@@ -256,7 +275,9 @@ brief 點名的三件事，對應的機制：
 
 ```
 pipeline/
-  cli.py            finvid run / serve / costs / clean
+  cli.py            finvid run / serve [--open] / costs / clean
+  ui/settings_api.py 設定面板：讀寫 .env（key 只回尾 4 碼）、檢查 OpenAI / HF / Pexels / ComfyUI
+start-finvid.bat / start-finvid.command / start.py   一鍵啟動（建 venv、安裝、檢查 ffmpeg、開儀表板）
   config.py         所有影響成本的設定（.env）
   context.py        RunContext、run_stage（快取、dry-run、預算閘）
   manifest.py       manifest.json：冪等快取 + 成本帳本

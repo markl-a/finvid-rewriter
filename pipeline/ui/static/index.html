@@ -28,6 +28,14 @@
   form.run label { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted); }
   form.run label.chk { flex-direction: row; align-items: center; gap: 4px; color: var(--ink); font-size: 13px; padding-bottom: 6px; }
   form.run input[type=text] { min-width: 320px; flex: 1; }
+  .settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px 18px; }
+  .settings label { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: var(--muted); }
+  .settings label input, .settings label select { width: 100%; box-sizing: border-box; }
+  .settings .row { display: flex; gap: 6px; align-items: center; }
+  .settings .row input { flex: 1; }
+  .settings .probe { font-size: 12px; min-height: 16px; }
+  .settings h3 { grid-column: 1 / -1; margin: 6px 0 0; font-size: 13px; color: var(--ink); }
+  details.setup > summary { cursor: pointer; font-weight: 600; }
   input, select, button { font: inherit; padding: 6px 8px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; }
   input[type=number] { width: 70px; }
   button.primary { background: var(--accent); color: #fff; border-color: var(--accent); cursor: pointer; padding: 6px 16px; }
@@ -77,6 +85,54 @@
     <h1>finvid — 財經影片 → 短影音 改寫流程</h1>
     <span class="tag">成本意識流程：先估再送、能不送就不送、送過不重送</span>
   </header>
+
+  <h2>設定 <span class="muted small">（寫進專案的 .env，下次啟動就記得；key 只存本機，不會顯示回來）</span></h2>
+  <div class="card">
+    <details class="setup" id="setup" open>
+      <summary>Key 與 provider <span id="setupSummary" class="muted small"></span></summary>
+      <form class="settings" id="settingsForm" style="margin-top:10px">
+        <h3>必填</h3>
+        <label>OPENAI_API_KEY <span class="muted">（第 2、3 步；整支 demo 約 $0.1）</span>
+          <span class="row"><input type="password" name="OPENAI_API_KEY" placeholder="sk-…" autocomplete="off"><button type="button" data-probe="openai">檢查</button></span>
+          <span class="probe" id="probe-openai"></span></label>
+        <h3>第 4 步：AI 生成畫面（可選，全免費）</h3>
+        <label>FINVID_AI_VIDEO <span class="muted">（逗號串成備援鏈；none = 靜態卡）</span>
+          <select name="FINVID_AI_VIDEO">
+            <option value="none">none — 靜態卡（$0，不需 GPU / key）</option>
+            <option value="hf">hf — Hugging Face ZeroGPU（免費，~25 秒/段）</option>
+            <option value="hf,pixazo">hf,pixazo — 免費雲端兩層備援</option>
+            <option value="hf,pixazo,comfy">hf,pixazo,comfy — 免費雲端用完改本機 ComfyUI</option>
+            <option value="comfy">comfy — 只用本機 ComfyUI（$0，需 GPU）</option>
+            <option value="hf,minimax">hf,minimax — 免費用完改付費 MiniMax（$0.27/段，受預算閘）</option>
+          </select></label>
+        <label>HF_TOKEN <span class="muted">（免費帳號；沒填也能跑，但一天只夠 1–2 段）</span>
+          <span class="row"><input type="password" name="HF_TOKEN" placeholder="hf_…" autocomplete="off"><button type="button" data-probe="hf">檢查</button></span>
+          <span class="probe" id="probe-hf"></span></label>
+        <label>PIXAZO_API_KEY <span class="muted">（免費，pixazo.ai）</span>
+          <span class="row"><input type="password" name="PIXAZO_API_KEY" autocomplete="off"><button type="button" data-probe="pixazo">檢查</button></span>
+          <span class="probe" id="probe-pixazo"></span></label>
+        <label>FINVID_COMFY_URL <span class="muted">（本機 ComfyUI）</span>
+          <span class="row"><input type="text" name="FINVID_COMFY_URL" placeholder="http://127.0.0.1:8188"><button type="button" data-probe="comfy">檢查 ComfyUI</button></span>
+          <span class="probe" id="probe-comfy"></span></label>
+        <label>MINIMAX_API_KEY <span class="muted">（付費，可不填）</span>
+          <span class="row"><input type="password" name="MINIMAX_API_KEY" autocomplete="off"><button type="button" data-probe="minimax">檢查</button></span>
+          <span class="probe" id="probe-minimax"></span></label>
+        <h3>第 4 步：真實素材（可選，免費）</h3>
+        <label>FINVID_BROLL
+          <select name="FINVID_BROLL"><option value="none">none</option><option value="pexels">pexels — 每句一段真實素材（免費）</option></select></label>
+        <label>PEXELS_API_KEY <span class="muted">（免費，pexels.com/api）</span>
+          <span class="row"><input type="password" name="PEXELS_API_KEY" autocomplete="off"><button type="button" data-probe="pexels">檢查</button></span>
+          <span class="probe" id="probe-pexels"></span></label>
+        <h3>護欄</h3>
+        <label>FINVID_MAX_BUDGET_USD <span class="muted">（每次呼叫前預檢，超過就中止）</span><input type="text" name="FINVID_MAX_BUDGET_USD" placeholder="1.00"></label>
+        <label>FINVID_MAX_CLIPS <input type="text" name="FINVID_MAX_CLIPS" placeholder="3"></label>
+        <div class="row" style="grid-column: 1 / -1; gap: 12px">
+          <button class="primary" type="submit" id="saveBtn">儲存到 .env</button>
+          <span id="saveMsg" class="small muted"></span>
+        </div>
+      </form>
+    </details>
+  </div>
 
   <h2>執行</h2>
   <div class="card">
@@ -135,6 +191,49 @@
   let currentVid = null, pollTimer = null;
 
   // ---------------- run form
+  // ---- settings panel: .env read (masked) / write / probes
+  const SF = $('settingsForm');
+  async function loadSettings() {
+    let d; try { d = await (await fetch('/api/settings')).json(); } catch (e) { return; }
+    let missing = [];
+    for (const [k, v] of Object.entries(d.secrets)) {
+      const inp = SF.querySelector(`[name="${k}"]`); if (!inp) continue;
+      inp.value = ''; inp.placeholder = v.set ? `已設定 ${v.hint}（留空 = 不變）` : inp.placeholder || '';
+      if (k === 'OPENAI_API_KEY' && !v.set) missing.push('OPENAI_API_KEY');
+    }
+    for (const [k, v] of Object.entries(d.plain)) { const inp = SF.querySelector(`[name="${k}"]`); if (inp && v) inp.value = v; }
+    $('setupSummary').textContent = missing.length ? `— 還沒填 ${missing.join(', ')}` : `— ${d.env_path}`;
+    if (!missing.length && !location.hash.includes('setup')) $('setup').open = false;
+  }
+  SF.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const values = {};
+    SF.querySelectorAll('input, select').forEach(inp => { if (inp.name && (inp.type !== 'password' || inp.value.trim())) values[inp.name] = inp.value.trim(); });
+    $('saveBtn').disabled = true; $('saveMsg').textContent = '儲存中…';
+    try {
+      const r = await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ values }) });
+      const d = await r.json();
+      $('saveMsg').textContent = r.ok ? `已寫入 ${d.env_path}（${d.saved.length} 項）` : ('儲存失敗：' + (d.detail || r.status));
+      if (r.ok) loadSettings();
+    } catch (err) { $('saveMsg').textContent = '儲存失敗：' + err; }
+    $('saveBtn').disabled = false;
+  });
+  SF.querySelectorAll('button[data-probe]').forEach(b => b.addEventListener('click', async () => {
+    const what = b.dataset.probe, out = $('probe-' + what);
+    // save the typed value first so the probe tests what will actually be used
+    const inp = b.closest('.row').querySelector('input');
+    if (inp && inp.value.trim()) await fetch('/api/settings', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ values: { [inp.name]: inp.value.trim() } }) });
+    out.innerHTML = '<span class="muted">檢查中…</span>'; b.disabled = true;
+    try {
+      const d = await (await fetch('/api/settings/probe', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ what }) })).json();
+      const extra = Object.entries(d).filter(([k]) => !['ok', 'message', 'ms'].includes(k)).map(([k, v]) => `${k}=${esc(v)}`).join(' · ');
+      out.innerHTML = d.ok ? `<span class="badge b-ok">OK</span> <span class="muted">${extra}</span>` : `<span class="badge b-bad">失敗</span> ${esc(d.message)}`;
+      if (inp && inp.value.trim()) loadSettings();
+    } catch (err) { out.innerHTML = `<span class="badge b-bad">失敗</span> ${esc(err)}`; }
+    b.disabled = false;
+  }));
+  loadSettings();
+
   $('runForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const body = {

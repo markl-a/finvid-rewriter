@@ -149,13 +149,20 @@ def clean(url: str = typer.Option(DEFAULT_URL, "--url", "-u",
 
 
 @app.command()
-def serve(host: str = "127.0.0.1", port: int = 8000):
-    """Start the local web UI (FastAPI + one HTML page)."""
+def serve(host: str = "127.0.0.1", port: int = 8000,
+          open_browser: bool = typer.Option(False, "--open", help="Open the dashboard in the default browser")):
+    """Start the local web UI (FastAPI + one HTML page). Keys and providers can be set from its 設定 panel."""
+    import threading
+    import webbrowser
+
     import uvicorn
 
     from .ui.server import app as web_app
 
-    console.print(f"open http://{host}:{port}")
+    url = f"http://{host}:{port}"
+    console.print(f"open {url}   (Ctrl+C to stop)")
+    if open_browser:
+        threading.Timer(1.2, lambda: webbrowser.open(url)).start()
     uvicorn.run(web_app, host=host, port=port, log_level="warning")
 
 

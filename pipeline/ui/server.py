@@ -32,6 +32,10 @@ run_pipeline = None
 
 app = FastAPI(title="finvid cost dashboard")
 
+from .settings_api import router as _settings_router  # noqa: E402 - keys/probes panel
+
+app.include_router(_settings_router)
+
 
 # ---------------------------------------------------------------- helpers
 def data_dir() -> Path:

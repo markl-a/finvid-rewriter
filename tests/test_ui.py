@@ -214,3 +214,52 @@ def test_concurrent_run_guard(client, monkeypatch):
     # once finished, the same video may run again
     release.set()
     assert client.post("/api/runs", json={"url": VID}).status_code == 202
+
+
+def test_settings_api_reads_masked_and_writes_env(tmp_path, monkeypatch, client):
+    """The dashboard's 設定 panel: secrets never come back in full, writes merge into .env
+    (placeholder comment lines become real assignments), unknown keys are refused."""
+    from pipeline.ui import settings_api as sa
+    env = tmp_path / ".env"
+    env.write_text("# 說明\n# HF_TOKEN=hf_...（選填）\nOPENAI_API_KEY=\nFINVID_MAX_CLIPS=3\n", encoding="utf-8")
+    monkeypatch.setattr(sa, "ENV_PATH", env)
+    monkeypatch.setattr(sa, "ENV_EXAMPLE", tmp_path / "nope")
+
+    d = client.get("/api/settings").json()
+    assert d["secrets"]["OPENAI_API_KEY"] == {"set": False, "hint": ""} and d["plain"]["FINVID_MAX_CLIPS"] == "3"
+
+    r = client.post("/api/settings", json={"values": {"OPENAI_API_KEY": "sk-test-1234567890", "HF_TOKEN": "hf_abcdefghijkl",
+                                                       "FINVID_AI_VIDEO": "hf,pixazo", "FINVID_BROLL": "pexels"}})
+    assert r.status_code == 200 and sorted(r.json()["saved"]) == ["FINVID_AI_VIDEO", "FINVID_BROLL", "HF_TOKEN", "OPENAI_API_KEY"]
+    text = env.read_text(encoding="utf-8")
+    assert "OPENAI_API_KEY=sk-test-1234567890" in text and "HF_TOKEN=hf_abcdefghijkl" in text
+    assert "# 說明" in text and "# HF_TOKEN=" not in text  # comment kept, placeholder replaced
+    assert "FINVID_AI_VIDEO=hf,pixazo" in text and "FINVID_MAX_CLIPS=3" in text
+
+    d = client.get("/api/settings").json()
+    assert d["secrets"]["OPENAI_API_KEY"] == {"set": True, "hint": "…7890"}
+    assert "sk-test" not in client.get("/api/settings").text  # never echoed
+    assert d["plain"]["FINVID_AI_VIDEO"] == "hf,pixazo"
+
+    assert client.post("/api/settings", json={"values": {"EVIL": "x"}}).status_code == 400
+    assert client.post("/api/settings", json={"values": {"OPENAI_API_KEY": "請在此填入"}}).status_code == 400
+    assert client.post("/api/settings/probe", json={"what": "nope"}).status_code == 400
+
+
+def test_settings_probe_comfy_reports_missing_models(monkeypatch, client):
+    from pipeline.ui import settings_api as sa
+    import httpx
+
+    def handler(req: httpx.Request) -> httpx.Response:
+        if req.url.path == "/system_stats":
+            return httpx.Response(200, json={"devices": [{"name": "fake gpu", "vram_total": 8e9}]})
+        if "CheckpointLoaderSimple" in req.url.path:
+            return httpx.Response(200, json={"CheckpointLoaderSimple": {"input": {"required": {"ckpt_name": [["other.safetensors"]]}}}})
+        if "CLIPLoader" in req.url.path:
+            return httpx.Response(200, json={"CLIPLoader": {"input": {"required": {"clip_name": [["t5xxl_fp8_e4m3fn_scaled.safetensors"]]}}}})
+        return httpx.Response(404)
+
+    real_client = httpx.Client
+    monkeypatch.setattr(sa.httpx, "Client", lambda base_url, timeout: real_client(base_url=base_url, transport=httpx.MockTransport(handler)))
+    res = sa.probe_comfy("http://comfy.test")
+    assert res["ok"] is False and "缺模型檔" in res["message"] and "ltxv-2b" in res["message"] and res["device"] == "fake gpu"
