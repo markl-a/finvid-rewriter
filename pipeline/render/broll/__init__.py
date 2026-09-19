@@ -10,10 +10,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ...config import Settings
+from ...config import ConfigError, Settings
 
 
-class BrollError(RuntimeError):
+class BrollError(ConfigError):  # a setup/quota problem -> friendly CLI message, not a traceback
     """Missing key, rejected key, rate limit: stop the run with a message that says what to do."""
 
 
@@ -25,4 +25,4 @@ def make_broll(settings: Settings, cache_dir: Path | None = None):
         from .pexels import PexelsBroll
 
         return PexelsBroll.from_settings(settings, cache_dir=cache_dir)
-    raise ValueError(f"unknown FINVID_BROLL backend {kind!r} (none | pexels)")
+    raise ConfigError(f"unknown FINVID_BROLL backend {kind!r} (none | pexels)")

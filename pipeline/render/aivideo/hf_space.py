@@ -1,8 +1,10 @@
 """Hugging Face ZeroGPU backend: call a public Gradio Space (default: Lightricks' official
-LTX-Video distilled demo) through `gradio_client`. Free: anonymous callers get ~2 GPU-minutes a
-day, a free HF account (HF_TOKEN) ~3.5; one 5 s 576x1024 shot costs ~10-15 GPU seconds and
-~25 s wall. The quota is the "budget" here, so a quota refusal is surfaced as a clear error and
-the shots already rendered stay cached - re-running tomorrow only renders what is missing.
+LTX-Video distilled demo) through `gradio_client`. Free, but metered: measured 2026-09-19,
+anonymous callers get 120 GPU-seconds a day and the Space RESERVES 120 s per call, so anonymous
+use is 1-2 shots a day; a free HF account token (HF_TOKEN) gets a larger daily allowance (a full
+3-clip run went through). One 5 s 576x1024 shot is ~18-25 s wall. The quota is the "budget" here,
+so a quota refusal is surfaced as a clear error and the shots already rendered stay cached -
+re-running later only renders what is missing.
 """
 from __future__ import annotations
 

@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from pipeline.config import Settings
+from pipeline.config import ConfigError, Settings
 from pipeline.render.aivideo import FallbackProvider, make_provider
 from pipeline.render.aivideo.pixazo import ENDPOINT, PixazoError, PixazoProvider
 
@@ -83,8 +83,8 @@ def test_make_provider_pixazo_and_chain():
     chain = make_provider(_settings(ai_video="hf,pixazo,comfy"))
     assert isinstance(chain, FallbackProvider) and len(chain.providers) == 3
     assert [x.name for x in chain.providers] == ["hf-zerogpu", "pixazo", "comfyui"]
-    with pytest.raises(ValueError, match="pixazo"):
-        make_provider(_settings(ai_video="kling"))
+    with pytest.raises(ConfigError, match="pixazo"):
+        make_provider(_settings(ai_video="runway"))
 
 
 def test_body_is_free_tier_ltx_shape():

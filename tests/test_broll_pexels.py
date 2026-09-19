@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from pipeline.config import Settings
+from pipeline.config import ConfigError, Settings
 from pipeline.render import tts
 from pipeline.render.broll import BrollError, make_broll
 from pipeline.render.broll.pexels import DEFAULT_QUERY, PexelsBroll
@@ -79,7 +79,7 @@ def test_make_broll():
     b = make_broll(_settings())
     assert isinstance(b, PexelsBroll) and b.api_key == "test-key" and b.max_clip_seconds == 8.0
     assert b.cache_dir.name == "_broll"
-    with pytest.raises(ValueError, match="FINVID_BROLL"):
+    with pytest.raises(ConfigError, match="FINVID_BROLL"):
         make_broll(_settings(broll="shutterstock"))
 
 

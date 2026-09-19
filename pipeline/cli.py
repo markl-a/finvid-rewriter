@@ -166,7 +166,10 @@ def _print_costs(m: Manifest, this_run_usd: float | None = None, dry_run: bool =
     real = sum(c.usd for c in entries if not c.estimated)
     est = sum(c.usd for c in entries if c.estimated and c.provider != "reference")
     ref = sum(c.usd for c in entries if c.provider == "reference")
-    console.print(f"actual spent (all runs, cached included): ${real:.4f}")
+    console.print(f"actual spent for the current outputs (last successful run of each stage): ${real:.4f}")
+    runs_total = sum(float(r.get("usd") or 0) for r in m.data.get("runs", []))
+    if runs_total > real + 1e-6:
+        console.print(f"spent across all {len(m.data.get('runs', []))} runs incl. re-runs: ${runs_total:.4f}")
     if dry_run:
         console.print(f"estimated for this dry run: ${est:.4f}")
     if this_run_usd is not None and not dry_run:

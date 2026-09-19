@@ -20,7 +20,7 @@ from ..models import CostEntry, RenderedClip, RenderOutput, ScriptClip, ScriptsO
 from ..pricing import ai_video_reference_cost
 from ..render import tts
 from ..render.chart import render_chart
-from ..render.aivideo import make_provider
+from ..render.aivideo import make_provider, normalized_chain
 from ..render.broll import make_broll
 from ..render.compose import compose_clip
 
@@ -39,6 +39,7 @@ CLIPS_DIR = "04_clips"
 def stage_config(ctx: RunContext) -> dict[str, Any]:
     s = ctx.settings
     s3 = ctx.manifest.data.get("stages", {}).get("s3_script") or {}
+    chain = normalized_chain(s.ai_video)
     return {
         "video_id": ctx.video_id,
         "render_version": RENDER_VERSION,
@@ -47,12 +48,19 @@ def stage_config(ctx: RunContext) -> dict[str, Any]:
         "width": s.video_width,
         "height": s.video_height,
         "max_clips": ctx.max_clips,
-        "ai_video": s.ai_video,
+        "ai_video": ",".join(chain),
+        # every knob that changes a generated shot (per-shot caches key on these too, but a stage-level
+        # hit never reaches them): providers, size, count, and each backend's model/params
         "ai_shot": {"seconds": s.ai_shot_seconds, "w": s.ai_shot_width, "h": s.ai_shot_height,
-                    "per_clip": s.ai_shots_per_clip,
-                    "hf_space": s.hf_space if "hf" in s.ai_video else None,
-                    "comfy": {"model": s.comfy_checkpoint, "steps": s.comfy_steps} if "comfy" in s.ai_video else None,
-                    } if s.ai_video != "none" else None,
+                    "fps": s.ai_shot_fps, "per_clip": s.ai_shots_per_clip,
+                    "hf": {"space": s.hf_space} if "hf" in chain else None,
+                    "pixazo": True if "pixazo" in chain else None,
+                    "comfy": {"model": s.comfy_checkpoint, "text_encoder": s.comfy_text_encoder,
+                              "workflow": s.comfy_workflow, "steps": s.comfy_steps, "cfg": s.comfy_cfg}
+                    if "comfy" in chain else None,
+                    "minimax": {"model": s.minimax_model, "resolution": s.minimax_resolution} if "minimax" in chain else None,
+                    "kling": {"model": s.kling_model, "mode": s.kling_mode} if "kling" in chain else None,
+                    } if chain != ["none"] else None,
         "broll": {"source": s.broll, "max_clip_seconds": s.broll_max_clip_seconds} if s.broll != "none" else None,
         "s3_config_hash": s3.get("config_hash"),
     }

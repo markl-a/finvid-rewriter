@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     hf_token: str | None = Field(default=None, validation_alias="HF_TOKEN")  # optional: bigger ZeroGPU quota
     pixazo_api_key: str | None = Field(default=None, validation_alias="PIXAZO_API_KEY")  # free LTX tier
     minimax_api_key: str | None = Field(default=None, validation_alias="MINIMAX_API_KEY")  # paid (Hailuo)
+    kling_access_key: str | None = Field(default=None, validation_alias="KLING_ACCESS_KEY")  # paid; pair with secret
+    kling_secret_key: str | None = Field(default=None, validation_alias="KLING_SECRET_KEY")
     pexels_api_key: str | None = Field(default=None, validation_alias="PEXELS_API_KEY")  # FINVID_BROLL=pexels
 
     # step 2
@@ -70,6 +72,10 @@ class Settings(BaseSettings):
     minimax_model: str = "MiniMax-Hailuo-02"  # priced in render/aivideo/minimax.py PRICES_USD
     minimax_resolution: str = "768P"  # 512P | 768P | 1080P (6 s only)
     minimax_timeout_sec: float = 900
+    kling_model: str = "kling-v1"        # see PRICES_USD in render/aivideo/kling.py
+    kling_mode: str = "std"              # std | pro
+    kling_base_url: str = "https://api-singapore.klingai.com"  # mainland accounts: https://api.klingai.com
+    kling_timeout_sec: float = 900
 
     # step 4: real stock footage under every line. none = keep AI shots / static card (default)
     broll: str = "none"  # none | pexels (free key, 200 requests/hour, commercial use, no attribution)

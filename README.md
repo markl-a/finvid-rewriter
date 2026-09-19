@@ -9,8 +9,8 @@
 |---|---|---|---|
 | 1 `s1_download` | 只拉音軌，轉 16 kHz 單聲道，去靜音 | yt-dlp + ffmpeg | $0 |
 | 2 `s2_transcribe` | 分段送 STT，簡轉繁 | OpenAI `gpt-4o-mini-transcribe`（或本機 faster-whisper） | $0.047（15.8 分鐘） |
-| 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.061（8 段候選，3 段寫腳本，省下 5 次強模型呼叫） |
-| 4 `s4_render` | **AI 生成的開場鏡頭 + 每句一段真實素材**鋪滿整支，圖表卡疊在畫面上，免費 TTS + ffmpeg 合成字幕 | AI：HF ZeroGPU → Pixazo → 本機 ComfyUI（同一個 LTX-Video 模型，免費備援鏈）；素材：Pexels；edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭、23 次 Pexels 搜尋） |
+| 3 `s3_script` | 便宜模型切段打分 → 篩選 → 只對前 3 段用強模型寫腳本 → 反抄襲閘 → 數字溯源閘 | OpenAI `gpt-5-mini` + `gpt-5` | $0.052（Pass B 3 段；Pass A 命中快取，首次另 $0.006。8 段候選只寫 3 段，省下 5 次強模型呼叫） |
+| 4 `s4_render` | **AI 生成的開場鏡頭 + 每句一段真實素材**鋪滿整支，圖表卡疊在畫面上，免費 TTS + ffmpeg 合成字幕 | AI：HF ZeroGPU → Pixazo → 本機 ComfyUI（同一個 LTX-Video 模型，免費備援鏈）；素材：Pexels；edge-tts + matplotlib + PIL + ffmpeg | $0（3 支共 110 秒；3 段 AI 鏡頭共 39 秒、23 段 Pexels 素材——首次 23 次搜尋，之後全部快取 0 次） |
 | | | **合計** | **$0.099** |
 
 對照：同樣 3 支整支用 AI 影片 API 生成約 $27.5；換成付費的 MiniMax 只做開場鏡頭是 $0.81（3 × $0.27），流程支援但預設不用。**第二次跑同一支影片：$0**（manifest 快取全命中，AI 鏡頭也依 prompt hash 快取）。
@@ -21,6 +21,7 @@
 ## 1. 在本機跑起來
 
 需求：Python 3.11+、ffmpeg、一把 OpenAI API key。整支 demo 約 $0.1，帳戶有幾塊美金餘額（或新帳號的試用額度）就夠；
+**預設 `finvid run` 產出的是靜態卡版本**（不需要 GPU、不需要其他 key）；要重現 [data/demo/](data/demo/) 那種「AI 開場 + 真實素材」的成品，看下面「重現 demo」。
 沒有 key 也能做三件事：跑測試、`finvid run --dry-run` 看估算、`finvid serve` 看 repo 內附的 demo 產出。
 第 2 步可改 `FINVID_STT_PROVIDER=local`（本機 faster-whisper，$0）；第 3 步的 LLM 目前只接 OpenAI。
 
@@ -68,13 +69,23 @@ finvid run
 03_scripts.json       所有候選段落（含被跳過的原因）+ 通過的腳本 + 被退回的腳本
 04_clips/clip_XX.mp4  短影音（1080×1920）
 04_clips/chart_XX.png 用數據重繪的圖表
-04_clips/ai_XX*.mp4   AI 生成的 5 秒鏡頭（FINVID_AI_VIDEO=comfy 時，每支 clip 數段；.json 是 prompt 與 GPU 秒數）
+04_clips/ai_XX*.mp4   AI 生成的 5 秒鏡頭（FINVID_AI_VIDEO 設定時；.json 是 provider、prompt 與秒數）
 data/_broll/          Pexels 實拍素材快取（FINVID_BROLL=pexels 時；跨影片共用，04_render.json 的 broll_paths 以 ../_broll/ 指向這裡）
 04_render.json
 manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 ```
 
 再跑一次 `finvid run`：四個 stage 全部 cache hit，花費 $0。要重做用 `--force`，或 `finvid clean --stage s3` 只重做第 3 步以後。
+
+### 重現 demo（AI 開場鏡頭 + 每句真實素材，$0，兩把免費 key）
+
+```bash
+# .env 加兩行：HF_TOKEN=hf_...（huggingface.co → Settings → Access Tokens，免費帳號即可）
+#              PEXELS_API_KEY=...（pexels.com/api，註冊即發）
+FINVID_AI_VIDEO=hf FINVID_BROLL=pexels finvid run      # PowerShell: $env:FINVID_AI_VIDEO="hf"; $env:FINVID_BROLL="pexels"; finvid run
+```
+
+會多做：每支 clip 一段 5 秒 AI 開場鏡頭（HF ZeroGPU，約 20 秒/段、$0）、每句台詞一段 Pexels 直式素材（約 20 次搜尋、$0）。[data/demo/](data/demo/) 就是這條路徑跑出來的（`FINVID_AI_VIDEO=hf,pixazo,comfy` 備援鏈，實際用到的是 `hf`）。沒有 GPU、額度用完、沒 key 都會明確報錯而不是默默退回靜態卡；細節與其他 provider 見「第 4 步的 AI 生成畫面」。
 
 ### Demo 產出（不用跑也看得到）
 
@@ -128,7 +139,8 @@ python -m pytest -q           # 單元測試（不需要 key、不需要網路�
 | `hf` | Hugging Face ZeroGPU 上 Lightricks 官方的 LTX-Video Space | **$0** | ~25 秒 | 什麼都不用；匿名每天約 1–2 段，填免費帳號的 `HF_TOKEN` 額度較大 |
 | `comfy` | 你自己的 GPU（本機 ComfyUI） | $0 | 80–120 秒（Radeon 8060S 內顯） | 裝 ComfyUI + 11.5 GB 模型（下面） |
 | `pixazo` | Pixazo 代管的 LTX-Video 端點（預覽期免費方案） | **$0** | ~60 秒 | 免費 key（`PIXAZO_API_KEY`，不用信用卡；每分鐘 60 次請求） |
-| `minimax` | MiniMax Hailuo API（唯一付費選項） | $0.27/段（768P；512P $0.08、1080P $0.54） | 20–60 秒 | 付費 key（`MINIMAX_API_KEY`）；輸出 16:9，合成時置中裁成 9:16 |
+| `minimax` | MiniMax Hailuo API（付費） | $0.27/段（768P；512P $0.08、1080P $0.54） | 20–60 秒 | 付費 key（`MINIMAX_API_KEY`）；輸出 16:9，合成時置中裁成 9:16 |
+| `kling` | Kling API（付費；已實作、尚未實跑） | $0.18/段（kling-v1 std 5 s；v2.5-turbo $0.31） | 1–3 分鐘 | Access Key + Secret Key（`KLING_ACCESS_KEY`/`KLING_SECRET_KEY`，程式自簽 JWT）；原生 9:16 |
 | `hf,pixazo,comfy` | 先雲端免費額度，用完自動換本機 | $0 | — | 以上 |
 
 免費額度就是這一步的「預算」：額度用完會明確報錯（或依備援鏈換下一個），已生成的鏡頭都有快取，隔天再跑只補缺的。這跟 OpenAI 那邊的 `FINVID_MAX_BUDGET_USD` 是同一個思路，只是單位從美金變成 GPU 秒。付費的 `minimax` 則直接走美金那條路：每段生成前先以表定價格（`minimax.py` 的 `PRICES_USD`，2026-09-19 看到的價格）過 `FINVID_MAX_BUDGET_USD` 的護欄，跟每一次 OpenAI 呼叫一樣，超預算就在呼叫前中止；備援鏈裡把它放最後，只有免費的都用完才會付錢。
@@ -190,7 +202,7 @@ brief 點名的三件事，對應的機制：
 - Pass A 用便宜模型（`gpt-5-mini`）讀整份逐字稿一次，切成 5–10 段並給每段 hook 分數、有無可畫圖的數據。
 - 篩選閘是純程式：分數低於門檻、主題重複、超過 `--max-clips` 的段落都不進下一步。候選段落通常 6–10 段，只有 3 段送強模型，其餘在 `03_scripts.json` 留下跳過原因。
 - 強模型（`gpt-5`）每段一次呼叫，是流程中單價最高的地方，所以只在這裡用。
-- 生成影片的「貴的那一步」（AI 影片生成）控制在固定用量：每支 clip 2 段 5 秒鏡頭迴圈鋪滿，而不是逐句生成；而且只給通過篩選 + 反抄襲閘的 clip；用本機 ComfyUI 是 $0 + 每段 90 秒 GPU，換雲端 API 也走同一個閘與預算護欄。其餘畫面用 TTS + matplotlib + ffmpeg。帳本裡另記「若整支都用 Runway/Kling 類 API 會花多少」當對照（3 支約 $27.5）。
+- 生成影片的「貴的那一步」（AI 影片生成）控制在固定用量：每支 clip 固定段數的 5 秒鏡頭（demo 是 1 段開場 + 每句真實素材），而不是逐句生成；而且只給通過篩選 + 反抄襲閘的 clip；免費 provider 是 $0 + 時間/額度，付費 provider 走同一個閘與 `FINVID_MAX_BUDGET_USD` 預算護欄——備援鏈會用鏈中**最貴**的那個 provider 預檢，所以 `hf,minimax` 在免費額度還沒用完時就已經把 MiniMax 的價格算進去。其餘畫面用 TTS + matplotlib + ffmpeg。帳本裡另記「若整支都用 Runway/Kling 類 API 會花多少」當對照（3 支約 $27.5）。
 
 **「是否避免同一支影片重複處理」**
 - `data/<video_id>/manifest.json` 記每個 stage 的設定 hash 與輸出檔。設定沒變、檔案還在就跳過。
@@ -246,7 +258,9 @@ pipeline/
   numbers.py        數字溯源：中文/阿拉伯數字解析，圖表點必須在逐字稿出現過
   stages/           s1_download s2_transcribe s3_script s4_render
   render/           tts chart compose fonts
-  render/aivideo/   AI 鏡頭 provider：base.py（快取/帳本）、hf_space.py、comfy.py + workflows/*.json、備援鏈
+  render/aivideo/   AI 鏡頭 provider：base.py（快取/帳本）、hf_space.py、pixazo.py、comfy.py + workflows/*.json、
+                    minimax.py、kling.py（付費）、__init__.py 的備援鏈（預算閘用鏈中最貴的估價預檢）
+  render/broll/     Pexels 真實素材（搜尋 + 下載雙快取）
   render/broll/     實拍素材 B-roll：pexels.py（搜尋/下載/裁剪快取在 data/_broll/、帳本）
   ui/               server.py + static/index.html
 tests/              不打 API、不需網路的單元測試
@@ -262,3 +276,5 @@ data/<video_id>/    產出與 manifest（gitignore；repo 內保留一份 demo �
 - `gpt-4o-mini-transcribe` 不回傳片段時間戳，中文輸出也沒有標點、只用空格分句。逐字稿依空格切成約 30 字的段落，時間是依每個 600 秒分段內的字數線性內插；切換到 `whisper-1` 可得到精確時間戳（貴一倍）。
 - edge-tts 需要網路；CJK 字型在 Windows 用微軟正黑體、macOS 用 PingFang，Linux 需自行安裝 Noto Sans CJK 並設 `FINVID_FONT`。
 - 單價表是 2026-09-18 查的，變動請改 `pipeline/pricing.py`。
+- 帳本只記每個 stage 最後一次成功執行；stage 中途失敗（例如第 2 支 clip 的 AI 鏡頭額度用完）時，前面已花的 TTS／已生成鏡頭的秒數不會進帳本，下次成功時鏡頭顯示為 cache hit 0 秒。`finvid costs` 另印 `runs[]` 的歷次總和作為對照。
+- ffmpeg 失敗時只會看到 `CalledProcessError`，stderr 沒有轉出來；本機裝好 ffmpeg 後實務上沒遇過。

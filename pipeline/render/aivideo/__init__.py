@@ -15,7 +15,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Protocol
 
-from ...config import Settings
+from ...config import ConfigError, Settings
 from ...models import CostEntry
 
 
@@ -60,11 +60,42 @@ class FallbackProvider:
         return self.providers[self.active].model
 
     def estimate(self, n_shots: int, seconds_each: float):
-        return self.providers[self.active].estimate(n_shots, seconds_each)
+        """Worst case over the providers still in play, not just the active one: the budget guard
+        pre-flights this BEFORE generate(), and generate() may fall through to a paid backend in the
+        same call. A chain `hf,minimax` therefore pre-flights MiniMax's price even while hf works,
+        and --dry-run shows the paid risk at the end of the chain."""
+        remaining = self.providers[self.active:]
+        ests = [p.estimate(n_shots, seconds_each) for p in remaining]
+        worst = max(ests, key=lambda es: sum(c.usd for c in es))
+        if len(remaining) > 1 and sum(c.usd for c in worst) > 0:
+            worst = [c.model_copy(update={"note": c.note + f" [worst case of chain {'>'.join(p.name for p in remaining)}]"})
+                     for c in worst]
+        return worst
+
+    def cached(self, prompt: str, out_mp4: Path, *, seconds: float, seed: int) -> ShotResult | None:
+        """A shot already rendered by ANY provider in the chain counts as done: after a fallback we
+        must not pay a second backend to redo what the first one produced yesterday."""
+        import json
+
+        side = out_mp4.with_suffix(".json")
+        if not (out_mp4.exists() and side.exists()):
+            return None
+        try:
+            key = json.loads(side.read_text(encoding="utf-8")).get("key")
+        except ValueError:
+            return None
+        for p in self.providers:
+            if p.cache_key(prompt, seconds=seconds, seed=seed) == key:
+                return ShotResult(path=out_mp4, cached=True,
+                                  costs=[p.entry(0, estimated=False, note=f"{out_mp4.name}: cache hit ({p.name})")])
+        return None
 
     def generate(self, prompt: str, out_mp4: Path, *, seconds: float, seed: int, log) -> ShotResult:
         from .base import AIVideoError
 
+        hit = self.cached(prompt, out_mp4, seconds=seconds, seed=seed)
+        if hit is not None:
+            return hit
         while True:
             p = self.providers[self.active]
             try:
@@ -73,8 +104,15 @@ class FallbackProvider:
                 if self.active + 1 >= len(self.providers):
                     raise
                 nxt = self.providers[self.active + 1]
-                log(f"[s4] {p.name} unavailable ({str(e).splitlines()[0][:120]}) -> falling back to {nxt.name}")
+                log(f"[s4] {p.name} unavailable ({str(e).splitlines()[0][:120]}) -> falling back to {nxt.name}"
+                    + (f" (paid: ${nxt.unit_price_usd:.2f}/shot, pre-flighted by the budget guard)"
+                       if getattr(nxt, "unit_price_usd", 0) else ""))
                 self.active += 1
+
+
+def normalized_chain(value: str | None) -> list[str]:
+    """'hf, comfy' and 'HF,comfy' are the same chain (also used for the s4 cache key)."""
+    return [k.strip().lower() for k in (value or "none").split(",") if k.strip()]
 
 
 def _single(kind: str, settings: Settings):
@@ -86,6 +124,10 @@ def _single(kind: str, settings: Settings):
         from .hf_space import HFSpaceProvider
 
         return HFSpaceProvider.from_settings(settings)
+    if kind == "kling":
+        from .kling import KlingProvider
+
+        return KlingProvider.from_settings(settings)
     if kind == "pixazo":
         from .pixazo import PixazoProvider
 
@@ -94,12 +136,12 @@ def _single(kind: str, settings: Settings):
         from .minimax import MiniMaxProvider
 
         return MiniMaxProvider.from_settings(settings)
-    raise ValueError(f"unknown FINVID_AI_VIDEO backend {kind!r} "
-                     f"(none | comfy | hf | pixazo | minimax, comma-separated for fallback)")
+    raise ConfigError(f"unknown FINVID_AI_VIDEO backend {kind!r} "
+                      f"(none | hf | pixazo | comfy | minimax | kling; comma-separated for fallback)")
 
 
 def make_provider(settings: Settings) -> AIVideoProvider | None:
-    kinds = [k.strip().lower() for k in (settings.ai_video or "none").split(",") if k.strip()]
+    kinds = normalized_chain(settings.ai_video)
     if not kinds or kinds == ["none"]:
         return None
     providers = [_single(k, settings) for k in kinds if k != "none"]

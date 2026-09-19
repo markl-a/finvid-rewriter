@@ -88,9 +88,12 @@ class PexelsBroll:
             except ValueError:
                 pass
         self.require_key()
-        r = self.client.get("/videos/search", headers={"Authorization": self.api_key},
-                            params={"query": query, "orientation": "portrait", "size": "medium",
-                                    "per_page": self.per_page})
+        try:
+            r = self.client.get("/videos/search", headers={"Authorization": self.api_key},
+                                params={"query": query, "orientation": "portrait", "size": "medium",
+                                        "per_page": self.per_page})
+        except httpx.HTTPError as e:
+            raise BrollError(f"Pexels not reachable: {e}") from e
         self.requests += 1
         if r.status_code == 401:
             raise BrollError(f"Pexels rejected PEXELS_API_KEY (401). {KEY_HINT}")
@@ -124,12 +127,16 @@ class PexelsBroll:
         if out.exists() and out.stat().st_size > 0:
             return out
         part = out.with_suffix(".part")
-        with self.client.stream("GET", link) as r:
-            if r.status_code != 200:
-                raise BrollError(f"Pexels download failed ({r.status_code}) for video {video_id}")
-            with part.open("wb") as fh:
-                for chunk in r.iter_bytes():
-                    fh.write(chunk)
+        try:
+            with self.client.stream("GET", link) as r:
+                if r.status_code != 200:
+                    raise BrollError(f"Pexels download failed ({r.status_code}) for video {video_id}")
+                with part.open("wb") as fh:
+                    for chunk in r.iter_bytes():
+                        fh.write(chunk)
+        except httpx.HTTPError as e:
+            part.unlink(missing_ok=True)
+            raise BrollError(f"Pexels download of video {video_id} failed: {e}") from e
         part.replace(out)
         self.downloads += 1
         log(f"[s4] pexels: downloaded video {video_id} ({out.stat().st_size / 1e6:.1f} MB) -> {out.name}")

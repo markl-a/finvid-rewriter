@@ -112,3 +112,83 @@ def test_fallback_chain_switches_on_provider_error_only(tmp_path):
     from pipeline.render.aivideo import make_provider
     assert isinstance(make_provider(_settings(ai_video="hf,comfy")), FallbackProvider)
     assert make_provider(_settings(ai_video="none")) is None
+
+
+def test_fallback_chain_preflights_worst_case_and_never_rerenders_other_providers_shot(tmp_path):
+    """QA findings: (1) estimate() must be the worst case of the remaining chain so ctx.charge()
+    guards a paid tail; (2) a shot rendered by provider A must be a cache hit for the chain even
+    after it fell back to B (never pay B to redo A's work)."""
+    from pipeline.models import CostEntry
+    from pipeline.render.aivideo import FallbackProvider, ShotResult
+    from pipeline.render.aivideo.base import AIVideoError, CachedShotProvider
+
+    class Free(CachedShotProvider):
+        name, model = "free", "m"
+        def __init__(self, fail=False):
+            super().__init__(width=576, height=1024, fps=24, ffmpeg_bin="ffmpeg", est_seconds=10)
+            self.fail, self.calls = fail, 0
+        def _render(self, prompt, raw_out, *, seconds, seed, log):
+            self.calls += 1
+            if self.fail: raise AIVideoError("quota")
+            raw_out.write_bytes(b"x"); return {}
+        def _to_mp4(self, src, out): out.write_bytes(b"mp4")
+
+    class Paid(Free):
+        name, model, unit, unit_price_usd = "paid", "p", "video", 0.27
+        def estimate(self, n, s): return [self.entry(n, estimated=True, note="paid")]
+        def quantity(self, *, wall, seconds): return 1
+
+    a, b = Free(), Paid()
+    chain = FallbackProvider([a, b])
+    est = chain.estimate(3, 5)
+    assert sum(c.usd for c in est) == pytest.approx(0.81) and "worst case" in est[0].note  # (1)
+
+    out = tmp_path / "ai_01.mp4"
+    r = chain.generate("p", out, seconds=5, seed=1, log=lambda m: None)
+    assert not r.cached and a.calls == 1 and b.calls == 0
+    a.fail = True                                  # free tier exhausted before a second run
+    r2 = chain.generate("p", out, seconds=5, seed=1, log=lambda m: None)
+    assert r2.cached and b.calls == 0 and "free" in r2.costs[0].note  # (2): A's shot reused, B not billed
+    r3 = chain.generate("p", tmp_path / "ai_02.mp4", seconds=5, seed=2, log=lambda m: None)
+    assert b.calls == 1 and r3.costs[0].usd == 0.27  # only the genuinely missing shot goes to the paid tail
+    assert sum(c.usd for c in chain.estimate(1, 5)) == 0.27  # now on the paid provider, estimate says so
+
+
+def test_kling_jwt_and_flow(tmp_path, monkeypatch):
+    import base64, json as _json
+    import httpx
+    from pipeline.render.aivideo.kling import KlingError, KlingProvider, sign_jwt
+    tok = sign_jwt("AK", "SK", now=1_700_000_000)
+    h, p, sig = tok.split(".")
+    pad = lambda x: x + "=" * (-len(x) % 4)  # noqa: E731
+    assert _json.loads(base64.urlsafe_b64decode(pad(h))) == {"alg": "HS256", "typ": "JWT"}
+    assert _json.loads(base64.urlsafe_b64decode(pad(p))) == {"iss": "AK", "exp": 1_700_001_800, "nbf": 1_699_999_995}
+
+    video = _mp4(_settings(), tmp_path / "k.mp4").read_bytes()
+    calls = {"post": 0, "poll": 0, "auth": set()}
+    def handler(req: httpx.Request) -> httpx.Response:
+        calls["auth"].add(req.headers.get("authorization", "")[:7])
+        if req.url.path == "/v1/videos/text2video" and req.method == "POST":
+            calls["post"] += 1
+            body = _json.loads(req.content)
+            assert body["aspect_ratio"] == "9:16" and body["duration"] == "5" and body["model_name"] == "kling-v1"
+            return httpx.Response(200, json={"code": 0, "data": {"task_id": "t1"}})
+        if req.url.path.startswith("/v1/videos/text2video/"):
+            calls["poll"] += 1
+            status = "processing" if calls["poll"] < 2 else "succeed"
+            return httpx.Response(200, json={"code": 0, "data": {"task_status": status,
+                                                                  "task_result": {"videos": [{"url": "http://cdn.test/v.mp4"}]}}})
+        if req.url.host == "cdn.test":
+            return httpx.Response(200, content=video)
+        return httpx.Response(404)
+    monkeypatch.setattr("pipeline.render.aivideo.kling.time.sleep", lambda _s: None)
+    kp = KlingProvider("AK", "SK", width=576, height=1024, fps=24, ffmpeg_bin=_settings().ffmpeg_bin(),
+                       client=httpx.Client(base_url="http://kling.test", transport=httpx.MockTransport(handler)))
+    r = kp.generate("harbour", tmp_path / "ai_k.mp4", seconds=5, seed=1, log=lambda m: None)
+    assert r.path.exists() and calls["post"] == 1 and calls["poll"] == 2 and calls["auth"] == {"Bearer ", ""}  # signed API calls, bare CDN download
+    assert r.costs[0].usd == 0.18 and r.costs[0].unit == "video" and not r.costs[0].estimated
+    assert kp.estimate(3, 5)[0].usd == pytest.approx(0.54)
+    with pytest.raises(KlingError, match="KLING_ACCESS_KEY"):
+        KlingProvider(None, None, width=576, height=1024, fps=24).headers()
+    with pytest.raises(KlingError, match="no price on file"):
+        KlingProvider("a", "b", model="kling-v9", width=576, height=1024, fps=24)

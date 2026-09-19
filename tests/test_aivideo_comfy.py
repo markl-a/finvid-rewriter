@@ -8,7 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 
-from pipeline.config import Settings
+from pipeline.config import ConfigError, Settings
 from pipeline.render.aivideo import make_provider
 from pipeline.render.aivideo.comfy import WORKFLOWS_DIR, ComfyUIError, ComfyUIProvider
 
@@ -69,8 +69,8 @@ def _provider(settings: Settings, fake: FakeComfy) -> ComfyUIProvider:
 
 def test_make_provider_none_and_unknown():
     assert make_provider(_settings(ai_video="none")) is None
-    with pytest.raises(ValueError):
-        make_provider(_settings(ai_video="kling"))
+    with pytest.raises(ConfigError):
+        make_provider(_settings(ai_video="runway"))
 
 
 def test_workflow_template_is_filled_and_typed():
