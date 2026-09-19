@@ -15,7 +15,8 @@
 | LLM 替代 | `gpt-4.1-mini` | $0.40 / $1.60 | Pass B 省 5 倍 |
 | TTS | edge-tts | $0 | 預設 |
 | TTS | `gpt-4o-mini-tts` | $0.60 / 1M 字元 + 音訊 token ≈ $0.00005/字 | 可選 |
-| AI 開場鏡頭（本機） | ComfyUI + LTX-Video 2B distilled | $0，每段 5 秒約 80–110 秒 GPU（Radeon 8060S 內顯） | `FINVID_AI_VIDEO=comfy`；帳本記 gpu_second |
+| AI 鏡頭（免費雲端） | HF ZeroGPU Space（Lightricks/ltx-video-distilled） | $0，每段約 25 秒；匿名每天約 1–2 段，免費帳號 token 更多 | `FINVID_AI_VIDEO=hf`；額度即預算 |
+| AI 鏡頭（本機） | ComfyUI + LTX-Video 2B distilled | $0，每段 5 秒約 80–120 秒 GPU（Radeon 8060S 內顯） | `FINVID_AI_VIDEO=comfy`；帳本記 gpu_second |
 | AI 影片 API（對照用） | Runway / Kling / Veo 類 | ≈ $0.25 / 秒 | 流程不會呼叫，只算對照 |
 
 ## 2. 本片一次完整執行的估算與實際
@@ -91,7 +92,7 @@
 ### 影片生成：固定每支 2 段 5 秒鏡頭迴圈，而且用本機
 - brief 說「生成短影音通常是最貴的一步」——整支 40 秒逐句用雲端 API 生成是每支 $2–10。財經數據型內容的價值在數字與圖表，所以生成用量鎖定：每支 clip 2 段 5 秒（開場 + 正文各一），正放+倒放迴圈鋪滿整支；圖表用 matplotlib 重繪後疊在畫面上（$0、可控、天然符合「圖表自製」），字幕／旁白／出處用 PIL + edge-tts + ffmpeg。
 - 生成的閘門跟寫腳本一樣：只給通過篩選與反抄襲閘的 clip、每支固定段數、預算閘、依 (provider, model, workflow, prompt) hash 快取（換版面重渲染時 6 段全部命中，33 秒完成）。
-- 預設 provider 是本機 ComfyUI + 開源 LTX-Video：$0、不用 key，代價是每段 80–110 秒 GPU。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
+- 兩個免費 provider：HF ZeroGPU（雲端、25 秒/段、每日額度）與本機 ComfyUI（80–120 秒/段、無上限），同一個開源 LTX-Video 模型，`hf,comfy` 先花免費額度再用本機。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
 - 帳本仍記一筆「整支都用 AI 影片 API」的 reference 費用（3 支約 $27.5），讓省下的量可見。
 
 ### 冪等快取的粒度
