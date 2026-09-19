@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     hf_token: str | None = Field(default=None, validation_alias="HF_TOKEN")  # optional: bigger ZeroGPU quota
     pixazo_api_key: str | None = Field(default=None, validation_alias="PIXAZO_API_KEY")  # free LTX tier
     minimax_api_key: str | None = Field(default=None, validation_alias="MINIMAX_API_KEY")  # paid (Hailuo)
+    pexels_api_key: str | None = Field(default=None, validation_alias="PEXELS_API_KEY")  # FINVID_BROLL=pexels
 
     # step 2
     stt_provider: str = "openai"  # openai | local
@@ -69,6 +70,10 @@ class Settings(BaseSettings):
     minimax_model: str = "MiniMax-Hailuo-02"  # priced in render/aivideo/minimax.py PRICES_USD
     minimax_resolution: str = "768P"  # 512P | 768P | 1080P (6 s only)
     minimax_timeout_sec: float = 900
+
+    # step 4: real stock footage under every line. none = keep AI shots / static card (default)
+    broll: str = "none"  # none | pexels (free key, 200 requests/hour, commercial use, no attribution)
+    broll_max_clip_seconds: float = 8.0  # each downloaded clip is trimmed to this before the ping-pong loop
 
     # guardrails
     max_budget_usd: float = 1.0

@@ -69,6 +69,7 @@ finvid run
 04_clips/clip_XX.mp4  短影音（1080×1920）
 04_clips/chart_XX.png 用數據重繪的圖表
 04_clips/ai_XX*.mp4   AI 生成的 5 秒鏡頭（FINVID_AI_VIDEO=comfy 時，每支 clip 數段；.json 是 prompt 與 GPU 秒數）
+data/_broll/          Pexels 實拍素材快取（FINVID_BROLL=pexels 時；跨影片共用，04_render.json 的 broll_paths 以 ../_broll/ 指向這裡）
 04_render.json
 manifest.json         每一步的快取 key + 成本帳本 + 每次執行紀錄
 ```
@@ -153,6 +154,24 @@ FINVID_AI_VIDEO=comfy finvid run          # PowerShell: $env:FINVID_AI_VIDEO="co
 
 流程在 `pipeline/render/aivideo/`：`hf_space.py` 用 `gradio_client` 呼叫 Space 的 `/text_to_video`；`pixazo.py` 送 LTX 參數（幀數 8k+1、576×1024、8 步）到 `gateway.pixazo.ai`，輪詢 `polling_url` 到 `COMPLETED` 再抓 `media_url`；`minimax.py` 送 `video_generation`、輪詢 `query/video_generation` 到 `Success`、`files/retrieve` 拿下載網址（Hailuo 文字生影片沒有直式參數，只能出 16:9，`compose.py` 放大置中裁成 9:16，兩側會被裁掉）；`comfy.py` 的 workflow 是 ComfyUI API 格式的 JSON 模板（`workflows/ltxv_t2v.json`，可換成任何自己的 workflow，`FINVID_COMFY_WORKFLOW=` 指向即可），程式填入 prompt / 尺寸 / 幀數 / seed 後 `POST /prompt`，輪詢 `/history`，抓回檔案轉 h264。ComfyUI 沒開時會明確報錯，不會默默退回靜態卡。帳本記 `comfyui / gpu_second` 單價 $0，dry-run 也會估 GPU 秒數，所以「$0 但每支 90 秒」和「$0.27 但 20 秒」（MiniMax）可以放在同一張表比。
 
+### 第 4 步的真實素材 B-roll（Pexels，免費）
+
+AI 鏡頭是「生成的畫面」；`FINVID_BROLL=pexels` 則是把每一句台詞底下換成**真實的直式實拍素材**，來自 [Pexels Video API](https://www.pexels.com/api/)：
+
+- **免費 key**：到 https://www.pexels.com/api/ 註冊即可拿到，填進 `.env` 的 `PEXELS_API_KEY`。沒填會在任何 TTS 之前擋下並指向這個網址。
+- **額度**：每小時 200 次、每月 20,000 次搜尋（下載不計）。本片 3 支 clip 約 20 句，一次完整執行約 20 次搜尋；撞到 429 會明確報錯並提示額度，不會默默退回。
+- **授權**：[Pexels License](https://www.pexels.com/license/) 可商用、免署名、可修改。
+- **兩層快取**（都在 `data/_broll/`，跨影片共用、gitignore）：搜尋結果按查詢字串 hash 存成 `search_<sha1>.json`，下載的影片按 Pexels id 存成 `<id>.mp4`，裁到 `FINVID_BROLL_MAX_CLIP_SECONDS`（預設 8 秒）的版本是 `<id>_8s.mp4`。同一份腳本再跑一次是 **0 次 API 呼叫**；帳本記 `pexels / request` 單價 $0、數量是實際打出去的搜尋次數，dry-run 會印「~N Pexels requests, $0」。
+
+**畫面怎麼排**：查詢字串就是第 3 步 Pass B 已經替每句台詞寫好的 `visual`（2–4 個英文素材關鍵字），不多叫一次 LLM。每句正文各配一段素材；開場 hook 若同時設了 `FINVID_AI_VIDEO`，就用**唯一一段** AI 鏡頭（`FINVID_AI_SHOTS_PER_CLIP` 被忽略，log 會說明），否則借第一個非空的 `visual`（或 `ai_shot` 描述）去搜。素材依播放順序交給同一個 `compose_clip`，所以場景窗剛好一句一段；某句搜不到就沿用上一場景的素材，畫面不會有空洞。圖表卡、標題／出處字卡、字幕的疊法跟 AI 鏡頭完全一樣。
+
+**跟版權規則的關係**：素材是 Pexels 的授權影片，**不是原節目的任何畫面**；改寫後的文字、自製圖表、合成語音、「資料來源：TVBS《健康2.0》」字卡都不變，只是背景從靜態卡或 AI 畫面換成實拍。
+
+```bash
+FINVID_BROLL=pexels finvid run                       # PowerShell: $env:FINVID_BROLL="pexels"; finvid run
+FINVID_BROLL=pexels FINVID_AI_VIDEO=hf finvid run    # hook 用 AI 鏡頭，其餘全部實拍素材
+```
+
 ## 2. 成本意識：這個流程在哪裡省錢
 
 brief 點名的三件事，對應的機制：
@@ -203,6 +222,7 @@ brief 點名的三件事，對應的機制：
 | TTS | edge-tts `zh-TW-HsiaoChenNeural` | 免費、台灣腔、自然度夠 demo | OpenAI `gpt-4o-mini-tts` 約 $0.01/支 |
 | 圖表 | matplotlib | 題目要求可程式化，CJK 字型可控 | Plotly（要 kaleido 輸出圖片，依賴較重） |
 | AI 鏡頭 | HF ZeroGPU Space（免費雲端）＋ 本機 ComfyUI，同一個 LTX-Video 2B distilled 模型，可串成備援鏈 | $0、開源權重、不用信用卡；雲端 25 秒/段但有每日額度，本機 90 秒/段但無上限；ComfyUI 的 HTTP API 讓 workflow 可以整段換掉 | 付費雲端：MiniMax Hailuo（$0.08–0.27/段）、Kling（$0.18–0.42/段）、Veo（無免費 API）；其他免費：Pixazo LTX（preview 期） |
+| 實拍素材 | Pexels Video API | 免費 key、可商用免署名、有直式篩選；查詢字串直接用 Pass B 已寫好的 `visual`，不多叫 LLM；搜尋與下載都快取，重跑 0 次呼叫 | Pixabay（額度較大但直式素材較少）、Coverr（無正式 API）、付費 Storyblocks |
 | 合成 | PIL + ffmpeg | 零依賴問題，Windows/macOS 都穩；字幕用 PNG overlay 避開 ffmpeg subtitles filter 在 Windows 的路徑地雷 | moviepy（慢、依賴多） |
 | UI | FastAPI + 單一 HTML | 不用 build、跨平台、不需部署；桌面 app 會被 Gatekeeper/防毒擋，雲端網站會曝露 key | Streamlit |
 
@@ -223,6 +243,7 @@ pipeline/
   stages/           s1_download s2_transcribe s3_script s4_render
   render/           tts chart compose fonts
   render/aivideo/   AI 鏡頭 provider：base.py（快取/帳本）、hf_space.py、comfy.py + workflows/*.json、備援鏈
+  render/broll/     實拍素材 B-roll：pexels.py（搜尋/下載/裁剪快取在 data/_broll/、帳本）
   ui/               server.py + static/index.html
 tests/              不打 API、不需網路的單元測試
 docs/               ANALYSIS.md（設計分析）COST.md（成本假設與決策）

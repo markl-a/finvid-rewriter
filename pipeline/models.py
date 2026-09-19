@@ -135,6 +135,8 @@ class RenderedClip(BaseModel):
     ai_shot_provider: str | None = None
     ai_shot_seconds: float = 0.0         # wall/GPU seconds for all shots of this clip (0 on cache hit)
     ai_shot_usd: float = 0.0             # what the shots cost: 0 for hf/pixazo/comfy, the per-video price for minimax
+    broll_paths: list[str] = Field(default_factory=list)  # stock clips in scene order, if FINVID_BROLL != none
+    broll_provider: str | None = None
 
 
 class RenderOutput(BaseModel):

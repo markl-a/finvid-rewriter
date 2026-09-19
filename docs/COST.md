@@ -19,6 +19,7 @@
 | AI 鏡頭（本機） | ComfyUI + LTX-Video 2B distilled | $0，每段 5 秒約 80–120 秒 GPU（Radeon 8060S 內顯） | `FINVID_AI_VIDEO=comfy`；帳本記 gpu_second |
 | AI 鏡頭（免費雲端） | Pixazo 代管 LTX-Video（預覽期免費方案） | $0，每段約 60 秒；每分鐘 60 次請求 | `FINVID_AI_VIDEO=pixazo`；免費 key、不用信用卡；帳本記 second（影片秒數）單價 $0 |
 | AI 鏡頭（付費雲端） | MiniMax `MiniMax-Hailuo-02` 6 秒 | 512P $0.08、768P $0.27、1080P $0.54 / 段（1 點 ≈ $0.27，套餐價，2026-09-19 看到） | `FINVID_AI_VIDEO=minimax`；帳本記 video 單價 = 表定價，dry-run 與預算閘用同一個數字；輸出 16:9 裁成 9:16 |
+| 實拍素材 B-roll | Pexels Video API | $0，每小時 200 次、每月 20,000 次搜尋 | `FINVID_BROLL=pexels`；帳本記 request，搜尋與下載都快取 |
 | AI 影片 API（對照用） | Runway / Kling / Veo 類 | ≈ $0.25 / 秒 | 流程不會呼叫，只算對照 |
 
 ## 2. 本片一次完整執行的估算與實際
@@ -97,6 +98,7 @@
 - 三個免費 provider：HF ZeroGPU（雲端、25 秒/段、每日額度）、Pixazo（雲端、約 60 秒/段、預覽期免費、免費 key）與本機 ComfyUI（80–120 秒/段、無上限），同一個開源 LTX-Video 模型，`hf,pixazo,comfy` 先花免費額度再用本機。帳本以 `gpu_second` 記錄，跟雲端方案（MiniMax $0.08–0.27/段、Kling $0.18–0.42/段、Veo $0.15–0.40/秒）放在同一張表比較：本機是「用時間換錢」，對 demo 與小量產出划算，量大時雲端每段 20 秒的吞吐才有意義。
 - 三種「$0」不是同一種 $0，跟唯一的付費選項放在一起看：**$0 但有配額**（`hf` 匿名每天 1–2 段、`pixazo` 每分鐘 60 次且預覽期隨時可能收費）——適合每天幾支的 demo；**$0 但吃 GPU 分鐘**（`comfy`，3 支 6 段約 9 分鐘）——無上限但機器被占住，量大時電費與等待時間才是成本；**$0.27 但 20 秒**（`minimax` 768P；512P $0.08 畫質夠用於背景）——本片 3 支 6 段 = $1.62，比整份 OpenAI 帳單（$0.10）貴 16 倍，所以它只能是明確列在 `FINVID_AI_VIDEO` 最後的備援，而且每段生成前都過 `FINVID_MAX_BUDGET_USD`（預設 $1.00 會擋下第 4 段）。轉折點大約在「每天要出 10 支以上、而且沒有閒置 GPU」：那時 MiniMax 的吞吐（每段 20–60 秒、可並行）才值 $0.27。
 - 帳本仍記一筆「整支都用 AI 影片 API」的 reference 費用（3 支約 $27.5），讓省下的量可見。
+- 第三個 $0 選項是真實素材：`FINVID_BROLL=pexels` 每句台詞從 Pexels 拉一段直式實拍素材（查詢字串就是 Pass B 已寫好的 `visual`，不多叫 LLM），可商用免署名；貴的不是錢而是額度（每小時 200 次搜尋），所以搜尋結果與下載都快取在 `data/_broll/` 跨影片共用，重跑 0 次呼叫。跟 AI 鏡頭可以並用：hook 用唯一一段 AI 鏡頭，其餘全實拍，GPU 時間從每支 2 段降到 1 段。
 
 ### 冪等快取的粒度
 - 以 stage 為單位，key = 影響輸出的設定 hash。改 Pass B 的模型只重做 s3、s4，不重做 STT。
