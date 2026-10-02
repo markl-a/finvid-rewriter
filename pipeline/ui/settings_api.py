@@ -23,7 +23,7 @@ router = APIRouter()
 ENV_PATH = PROJECT_ROOT / ".env"
 ENV_EXAMPLE = PROJECT_ROOT / ".env.example"
 
-# what the panel edits. Secrets are masked on read; the rest are shown as-is.
+# what the panel edits. Secrets render as password inputs (show/hide); the rest as plain text.
 SECRETS = ["OPENAI_API_KEY", "HF_TOKEN", "PEXELS_API_KEY", "PIXAZO_API_KEY", "MINIMAX_API_KEY",
            "KLING_ACCESS_KEY", "KLING_SECRET_KEY"]
 PLAIN = ["FINVID_AI_VIDEO", "FINVID_BROLL", "FINVID_AI_SHOTS_PER_CLIP", "FINVID_COMFY_URL",

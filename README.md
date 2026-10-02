@@ -129,7 +129,7 @@ finvid run --until s2         # 只跑到逐字稿
 finvid run --max-clips 1      # 只產 1 支
 finvid costs                  # 印本片（KjAI9r8tnOs）的成本帳本
 finvid costs --url demo       # 印 repo 內附 demo 的帳本（不需 key）
-python -m pytest -q           # 單元測試（不需要 key、不需要網路）
+python -m pytest -q           # 單元測試（不需要 key、不需要網路；Linux 沒裝中文字型時，需要字型的渲染測試會標成 skipped）
 ```
 
 ---
@@ -214,7 +214,7 @@ FINVID_BROLL=pexels FINVID_AI_VIDEO=hf finvid run    # hook 用 AI 鏡頭，其�
 | brief 問的 | 機制 | 本片的數字（帳本） |
 |---|---|---|
 | **STT 前是否對長影音做前處理，而非整支直接送** | 只拉音軌不拉影片（15 MB，不是幾百 MB）→ 16 kHz 單聲道 → ffmpeg 去靜音 → 600 秒分段、每段送前過預算閘；可選 `FINVID_SPEEDUP` / 裁頭尾 | 去靜音**只省 0.2%**（950 → 948 秒）：本片全程有音樂床，沒有真靜音，[誠實寫在第 3 節](#3-成本意識這個流程在哪裡省錢)。加速 1.2× 可省 17%，預設關（會增加錯字） |
-| **拆腳本、生成影片這些貴的步驟，是否先篩選再送** | 便宜模型 `gpt-5-mini` 讀一次全文打分 → 純程式閘（門檻／去重／上限）→ 只有選中的段落才送 `gpt-5` 寫腳本 → 只有通過反抄襲＋數字溯源的腳本才生成影片，每支固定 1 段 AI 鏡頭；付費 provider 走 `FINVID_MAX_BUDGET_USD` | 8 段候選只寫 3 段，省 5 次強模型呼叫 **≈ $0.088**（Pass B 實付 $0.052）；影片生成只做 3 段 5 秒開場而非 8 段整支：**$0 vs 整支 AI 生成 $27.5**（付費 MiniMax 只做開場也才 $0.81） |
+| **拆腳本、生成影片這些貴的步驟，是否先篩選再送** | 便宜模型 `gpt-5-mini` 讀一次全文打分 → 純程式閘（門檻／去重／上限）→ 只有選中的段落才送 `gpt-5` 寫腳本 → 只有通過反抄襲＋數字溯源的腳本才生成影片，每支固定段數的 AI 鏡頭（預設 2 段；搭配 Pexels 素材時只做 1 段開場）；付費 provider 走 `FINVID_MAX_BUDGET_USD` | 8 段候選只寫 3 段，省 5 次強模型呼叫 **≈ $0.088**（Pass B 實付 $0.052）；影片生成只做 3 段 5 秒開場而非 8 段整支：**$0 vs 整支 AI 生成 $27.5**（付費 MiniMax 只做開場也才 $0.81） |
 | **是否避免同一支影片重複處理、重複計費** | 五層快取：stage 設定 hash（manifest）→ Pass A 回覆 → 每段 AI 鏡頭的 prompt hash → Pexels 搜尋與下載 → 跨程序 `.running.lock`；上游設定變了才讓下游失效 | 第二次 `finvid run`：**$0、0 次 API 呼叫**。整個開發過程重跑 17 次（提示詞改 8 版、版面改 8 版）累計 **$0.385**，沒有快取會是 17 × $0.11 ≈ **$1.9** |
 
 ---
@@ -280,8 +280,6 @@ brief 點名的三件事，對應的機制：
 ```
 pipeline/
   cli.py            finvid run / serve [--open] / costs / clean
-  ui/settings_api.py 設定面板：讀寫 .env（key 只回尾 4 碼）、檢查 OpenAI / HF / Pexels / ComfyUI
-start-finvid.bat / start-finvid.command / start.py   一鍵啟動（建 venv、安裝、檢查 ffmpeg、開儀表板）
   config.py         所有影響成本的設定（.env）
   context.py        RunContext、run_stage（快取、dry-run、預算閘）
   manifest.py       manifest.json：冪等快取 + 成本帳本
@@ -293,9 +291,10 @@ start-finvid.bat / start-finvid.command / start.py   一鍵啟動（建 venv、�
   render/           tts chart compose fonts
   render/aivideo/   AI 鏡頭 provider：base.py（快取/帳本）、hf_space.py、pixazo.py、comfy.py + workflows/*.json、
                     minimax.py、kling.py（付費）、__init__.py 的備援鏈（預算閘用鏈中最貴的估價預檢）
-  render/broll/     Pexels 真實素材（搜尋 + 下載雙快取）
   render/broll/     實拍素材 B-roll：pexels.py（搜尋/下載/裁剪快取在 data/_broll/、帳本）
   ui/               server.py + static/index.html
+  ui/settings_api.py 設定面板：讀寫 .env（只綁 127.0.0.1，欄位預設遮蔽）、檢查 OpenAI / HF / Pexels / ComfyUI
+start-finvid.bat / start-finvid.command / start.py   一鍵啟動（建 venv、安裝、檢查 ffmpeg、開儀表板）
 tests/              不打 API、不需網路的單元測試
 docs/               ANALYSIS.md（設計分析）COST.md（成本假設與決策）
 data/<video_id>/    產出與 manifest（gitignore；repo 內保留一份 demo 的 JSON 產出）

@@ -189,12 +189,18 @@ def test_s2_chunks_long_audio(ctx_with_audio: RunContext, monkeypatch):
     fake = FakeClient("第一句。第二句。")
     monkeypatch.setattr(llm, "_client", fake)
     monkeypatch.setattr(s2, "CHUNK_SECONDS", 5)  # 13 s -> 3 chunks
+    real_split = s2.split_into_chunks
+    chunks: list = []
+    monkeypatch.setattr(s2, "split_into_chunks", lambda *a, **kw: chunks.extend(real_split(*a, **kw)) or chunks)
     ctx = ctx_with_audio
     r = s2.execute(ctx)
     assert len(fake.calls) == 3 and r.meta["chunks"] == 3
     tr = json.loads(ctx.path(s2.TRANSCRIPT_FILE).read_text(encoding="utf-8"))
     starts = [s["start"] for s in tr["segments"]]
-    assert starts == sorted(starts) and starts[2] == pytest.approx(5.0, abs=0.1)  # offset by chunk start
+    # `-c copy` cuts on packet boundaries, so chunk 2 starts near 5 s, not at it (5.12 s on ffmpeg 6.1);
+    # the transcript must be offset by the measured chunk start, whatever ffmpeg picked
+    assert chunks[1][1] == pytest.approx(5.0, abs=0.5)
+    assert starts == sorted(starts) and starts[2] == pytest.approx(chunks[1][1], abs=0.01)
     assert r.costs[0].quantity == pytest.approx(13 / 60, abs=0.01)
 
 

@@ -13,7 +13,7 @@ from pipeline.config import Settings
 from pipeline.context import RunContext, run_stage
 from pipeline.models import (ChartSeries, ChartSpec, DataPoint, RenderOutput, ScriptClip, ScriptLine,
                              ScriptsOutput, TopicSegment)
-from pipeline.render import tts
+from pipeline.render import fonts, tts
 from pipeline.render.chart import render_chart
 from pipeline.render.compose import compose_clip, wrap_cjk
 from pipeline.stages import s4_render as s4
@@ -21,6 +21,19 @@ from pipeline.stages import s4_render as s4
 VID = "KjAI9r8tnOs"
 URL = f"https://www.youtube.com/watch?v={VID}"
 SILENT_SEC = 1.2
+
+
+def _has_cjk_font() -> bool:
+    try:
+        fonts.find_cjk_font()
+        return True
+    except FileNotFoundError:
+        return False
+
+
+# charts and subtitle overlays need a Traditional Chinese font; skip (not fail) where none is installed
+needs_cjk_font = pytest.mark.skipif(
+    not _has_cjk_font(), reason="no CJK font: apt install fonts-noto-cjk, or set FINVID_FONT")
 
 
 def _settings(**kw) -> Settings:
@@ -83,6 +96,7 @@ def test_line_timings_include_gap():
     assert t == [(0.0, 1.25), (1.25, 3.5)]
 
 
+@needs_cjk_font
 def test_chart_renders_cjk_png(tmp_path):
     out = render_chart(_chart(), tmp_path / "chart.png")
     assert out.exists() and out.stat().st_size > 5_000
@@ -91,6 +105,7 @@ def test_chart_renders_cjk_png(tmp_path):
     assert w == 960 and h == 720
 
 
+@needs_cjk_font
 def test_chart_line_two_series(tmp_path):
     spec = ChartSpec(type="line", title="兩條線", series=[
         ChartSeries(name="A", points=[DataPoint(label="1月", value=1), DataPoint(label="2月", value=3)]),
@@ -100,6 +115,7 @@ def test_chart_line_two_series(tmp_path):
     assert out.stat().st_size > 5_000
 
 
+@needs_cjk_font
 def test_compose_silent_clip(tmp_path):
     s = _settings()
     clip = _clip()
@@ -116,6 +132,7 @@ def test_compose_silent_clip(tmp_path):
     assert "video" in streams and "audio" in streams
 
 
+@needs_cjk_font
 def test_compose_with_chart(tmp_path):
     s = _settings()
     clip = _clip(chart=_chart())
@@ -140,6 +157,7 @@ def _ctx(tmp_path: Path, settings: Settings, **kw) -> RunContext:
     return ctx
 
 
+@needs_cjk_font
 def test_execute_renders_two_clips(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "synthesize", _silent_audio)
     s = _settings()
@@ -177,6 +195,7 @@ def test_execute_renders_two_clips(tmp_path, monkeypatch):
     assert res2.cached and not calls
 
 
+@needs_cjk_font
 def test_execute_respects_max_clips(tmp_path, monkeypatch):
     monkeypatch.setattr(tts, "synthesize", _silent_audio)
     ctx = _ctx(tmp_path, _settings(), max_clips=1)
@@ -211,6 +230,7 @@ def _fake_shot(settings: Settings, out: Path, seconds: float = 2.0) -> Path:
     return out
 
 
+@needs_cjk_font
 def test_compose_with_ai_footage(tmp_path):
     """Generated shots run under the whole clip (ping-pong looped per scene window); the chart is
     overlaid as a card from the first body line; title/attribution layer on top throughout."""
@@ -267,6 +287,7 @@ def test_shot_prompts_use_visual_keywords():
     assert shot_prompts(_clip(), 1)[0].startswith("Cinematic vertical b-roll for a finance news short")
 
 
+@needs_cjk_font
 def test_execute_with_pexels_broll(tmp_path, monkeypatch):
     """FINVID_BROLL=pexels without an AI provider: one stock clip per line + one for the hook, in
     playback order, so compose gets one scene window per line; footage runs under the whole clip."""
@@ -326,6 +347,7 @@ def test_execute_with_pexels_broll(tmp_path, monkeypatch):
     assert any(min(px(3.0, pt)) > 200 for pt in card_pts), "chart card overlaid during body lines"
 
 
+@needs_cjk_font
 def test_execute_broll_with_ai_provider_hook_only(tmp_path, monkeypatch):
     """With an AI provider as well, only ONE AI shot (the hook) is generated per clip regardless of
     FINVID_AI_SHOTS_PER_CLIP; the body lines are all stock footage."""
